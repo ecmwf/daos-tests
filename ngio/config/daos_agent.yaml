@@ -1,0 +1,9 @@
+access_points: ['nextgenio-cn28']
+port: 10001
+transport_config:
+  allow_insecure: true
+  ca_cert: /etc/daos/certs/daosCA.crt
+  cert: /etc/daos/certs/agent.crt
+  key: /etc/daos/certs/agent.key
+runtime_dir: /tmp/daos/run/daos_agent
+log_file: /tmp/daos/log/daos_agent.log

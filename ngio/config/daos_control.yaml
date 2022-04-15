@@ -1,0 +1,7 @@
+hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001']
+transport_config:
+  allow_insecure: true
+  ca_cert: /etc/daos/certs/daosCA.crt
+  cert: /etc/daos/certs/admin.crt
+  key: /etc/daos/certs/admin.key
+
