@@ -22,9 +22,10 @@ servers="dual_server"
 simplified=( "" "--simple" "--simple-kvs" )
 osizes=("1MiB" "5MiB" "10MiB" "20MiB")
 ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_SX OC_SX OC_S1" )
-C=(1 2 4 8)
-REP=5
-WR=100
+#C=(1 2 4 8)
+C=(4)
+REP=10
+WR=2000
 sleep=0
 source pool_helpers.sh
 for s in "${simplified[@]}" ; do
@@ -45,6 +46,12 @@ c2=$(( c / 2 ))
 [ $c -eq 2 ] && N=(1 4 12 18 24 36 48 72 96 144)
 [ $c -eq 4 ] && N=(1 4 6 9 12 18 24 36 48 72)
 [ $c -eq 8 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 10 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 12 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 14 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 16 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 18 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 20 ] && N=(1 3 4 6 9 12 18 24 36 48)
 for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
     echo "### Pattern B $s, ${ocvec[@]}, ${osize}, C=$c, N=$n, rep=$r ###"

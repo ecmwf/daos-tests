@@ -16,7 +16,22 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+# 1
+#cns=("nextgenio-cn28")
+# 2
 cns=("nextgenio-cn28" "nextgenio-cn29")
+# 4
+#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21")
+# 8
+#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25")
+# 10
+#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27")
+# 12
+#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27" "nextgenio-cn06" "nextgenio-cn07")
+# 14
+#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09")
+# 16
+#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09" "nextgenio-cn31" "nextgenio-cn32")
 cd
 for cn in "${cns[@]}" ; do
     ssh -t $cn 'mkdir -p /tmp/daos-tests'

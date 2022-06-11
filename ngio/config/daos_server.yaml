@@ -15,32 +15,40 @@ engines:
 -
   targets: 12
   fabric_iface: ib0
-  fabric_iface_port: 21000
+  fabric_iface_port: 32000
   pinned_numa_node: 0
   log_file: /tmp/daos/log/daos_server1.log
   env_vars:
+  - LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
   - CRT_TIMEOUT=30
   - CRT_CREDIT_EP_CTX=0
   - FI_TCP_MAX_CONN_RETRY=1
   - FI_TCP_CONN_TIMEOUT=2000
-  - CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
   - DAOS_MD_CAP=2048
+  - CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+  - FI_PROVIDER=tcp
+  - FI_TCP_IFACE=ib0
+  - FI_TCP_BIND_BEFORE_CONNECT=1
   scm_mount: /mnt/daos/1
   scm_class: dcpm
   scm_list: [/dev/pmem0]
 -
   targets: 12
   fabric_iface: ib1
-  fabric_iface_port: 21500
+  fabric_iface_port: 32500
   pinned_numa_node: 1
   log_file: /tmp/daos/log/daos_server2.log
   env_vars:
+  - LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
   - CRT_TIMEOUT=30
   - CRT_CREDIT_EP_CTX=0
   - FI_TCP_MAX_CONN_RETRY=1
   - FI_TCP_CONN_TIMEOUT=2000
-  - CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
   - DAOS_MD_CAP=2048
+  - CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+  - FI_PROVIDER=tcp
+  - FI_TCP_IFACE=ib1
+  - FI_TCP_BIND_BEFORE_CONNECT=1
   scm_mount: /mnt/daos/2
   scm_class: dcpm
   scm_list: [/dev/pmem1]

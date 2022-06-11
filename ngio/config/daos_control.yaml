@@ -1,4 +1,19 @@
+# 1
+#hostlist: ['nextgenio-cn28:10001']
+# 2
 hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001']
+# 4
+#hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001', 'nextgenio-cn20:10001', 'nextgenio-cn21:10001']
+# 8
+#hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001', 'nextgenio-cn20:10001', 'nextgenio-cn21:10001', 'nextgenio-cn22:10001', 'nextgenio-cn23:10001', 'nextgenio-cn24:10001', 'nextgenio-cn25:10001']
+# 10
+#hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001', 'nextgenio-cn20:10001', 'nextgenio-cn21:10001', 'nextgenio-cn22:10001', 'nextgenio-cn23:10001', 'nextgenio-cn24:10001', 'nextgenio-cn25:10001', 'nextgenio-cn26:10001', 'nextgenio-cn27:10001']
+# 12
+#hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001', 'nextgenio-cn20:10001', 'nextgenio-cn21:10001', 'nextgenio-cn22:10001', 'nextgenio-cn23:10001', 'nextgenio-cn24:10001', 'nextgenio-cn25:10001', 'nextgenio-cn26:10001', 'nextgenio-cn27:10001', 'nextgenio-cn06:10001', 'nextgenio-cn07:10001']
+# 14
+#hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001', 'nextgenio-cn20:10001', 'nextgenio-cn21:10001', 'nextgenio-cn22:10001', 'nextgenio-cn23:10001', 'nextgenio-cn24:10001', 'nextgenio-cn25:10001', 'nextgenio-cn26:10001', 'nextgenio-cn27:10001', 'nextgenio-cn06:10001', 'nextgenio-cn07:10001', 'nextgenio-cn08:10001', 'nextgenio-cn09:10001']
+# 16
+#hostlist: ['nextgenio-cn28:10001', 'nextgenio-cn29:10001', 'nextgenio-cn20:10001', 'nextgenio-cn21:10001', 'nextgenio-cn22:10001', 'nextgenio-cn23:10001', 'nextgenio-cn24:10001', 'nextgenio-cn25:10001', 'nextgenio-cn26:10001', 'nextgenio-cn27:10001', 'nextgenio-cn06:10001', 'nextgenio-cn07:10001', 'nextgenio-cn08:10001', 'nextgenio-cn09:10001', 'nextgenio-cn31:10001', 'nextgenio-cn32:10001']
 transport_config:
   allow_insecure: true
   ca_cert: /etc/daos/certs/daosCA.crt

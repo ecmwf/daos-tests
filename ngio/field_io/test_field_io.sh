@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Copyright 2022 European Centre for Medium-Range Weather Forecasts (ECMWF)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +17,6 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
-
-#!/usr/bin/env bash
 
 start=`date +%s`
 

@@ -1,3 +1,5 @@
+#!/bin/env bash
+
 # Copyright 2022 European Centre for Medium-Range Weather Forecasts (ECMWF)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +18,6 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
-#!/bin/env bash
 
 # USAGE: ./ior/test_wrapper.sh <N_NODES> <DAOS_TEST_SCRIPT_NAME> <IOR_API> <FABRIC_PROVIDER> <CLIENTS_PER_NODE> <REPS_PER_CLIENT> <WRITE_OR_READ> <REP_MODE> <UNIQUE> <UNIQUE_REP> <KEEP> <SLEEP> <OC> <POOL> <CONT>
 
@@ -48,7 +49,6 @@ if [[ "$ior_api" == "DAOS" ]] || [[ "$ior_api" == "DFS" ]] ; then
 	module load mpich
 	module load packages-oneapi
 	module load compiler
-	export PSM2_DEVICES=self,hfi,shm
 	[[ "$ior_api" == "DAOS" ]] && \
 		ior_params="-o file_name --daos.pool $pool --daos.cont $cont --daos.oclass $oc"
 	[[ "$ior_api" == "DFS" ]] && \
@@ -64,7 +64,6 @@ elif [[ "$ior_api" == "MPIIO" ]] ; then
 	export IOR_HINT__MPI__romio_daos_obj_class=$oc
 	export DAOS_BYPASS_DUNS=1
 	export I_MPI_OFI_LIBRARY_INTERNAL=0
-	export PSM2_DEVICES=self,hfi,shm
 else
 	echo "Unsupported IOR API" && exit 1
 fi
@@ -98,24 +97,29 @@ if [ "$fabric_provider" == "sockets" ] ; then
 	export FI_SOCKETS_MAX_CONN_RETRY=1
 	export FI_SOCKETS_CONN_TIMEOUT=2000
 elif [ "$fabric_provider" == "tcp" ] ; then
-	export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
-	export FI_TCP_MAX_CONN_RETRY=1
-	export FI_TCP_CONN_TIMEOUT=2000
+    #export FI_TCP_IFACE=ib0
+    export FI_TCP_BIND_BEFORE_CONNECT=1
+    export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+    export FI_PROVIDER=tcp
+
+    export FI_TCP_MAX_CONN_RETRY=1
+    export FI_TCP_CONN_TIMEOUT=2000
 elif [ "$fabric_provider" == "psm2" ] ; then
 	export CRT_PHY_ADDR_STR="ofi+psm2"
-	export PSM2_MULTI_EP=1
-	export FI_PSM2_DISCONNECT=1
-	export FI_PSM2_CONN_TIMEOUT=2000
 else
 	echo "Unsupported fabric provider $fabric_provider"
 	exit 1
 fi
 
+export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+
+module load libfabric/latest
+export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+
 export D_LOG_MASK=
 export DD_SUBSYST=all
 export DD_MASK=all
 export DAOS_AGENT_DRPC_DIR=/tmp/daos/run/daos_agent/
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
 export CRT_TIMEOUT=1000
 export CRT_CREDIT_EP_CTX=0
 

@@ -1,3 +1,5 @@
+#!/bin/env bash
+
 # Copyright 2022 European Centre for Medium-Range Weather Forecasts (ECMWF)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +17,6 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
-
-#!/bin/env bash
 
 # USAGE: ./field_io/test_wrapper.sh <DAOS_TEST_SCRIPT_NAME> [options] <SCRIPT_ARGS>
 
@@ -175,8 +175,13 @@ else
 
 fi
 
+export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+
 export PATH="$field_io_shared_dir/bin:$PATH"
 export LD_LIBRARY_PATH="$field_io_shared_dir/lib:$LD_LIBRARY_PATH"
+
+module load libfabric/latest
+export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
 
 rm -rf /tmp/daos/log
 
@@ -189,14 +194,15 @@ if [ "$fabric_provider" == "sockets" ] ; then
 	export FI_SOCKETS_MAX_CONN_RETRY=1
 	export FI_SOCKETS_CONN_TIMEOUT=2000
 elif [ "$fabric_provider" == "tcp" ] ; then
-	export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+    #export FI_TCP_IFACE=ib0
+    export FI_TCP_BIND_BEFORE_CONNECT=1
+    export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+    export FI_PROVIDER=tcp
+
 	export FI_TCP_MAX_CONN_RETRY=1
 	export FI_TCP_CONN_TIMEOUT=2000
 elif [ "$fabric_provider" == "psm2" ] ; then
 	export CRT_PHY_ADDR_STR="ofi+psm2"
-	export PSM2_MULTI_EP=1
-	export FI_PSM2_DISCONNECT=1
-	export FI_PSM2_CONN_TIMEOUT=2000
 else
 	echo "Unsupported fabric provider $fabric_provider (test name $test_name)"
 	exit 1
@@ -206,7 +212,6 @@ export D_LOG_MASK=
 export DD_SUBSYST=all
 export DD_MASK=all
 export DAOS_AGENT_DRPC_DIR=/tmp/daos/run/daos_agent/
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
 export CRT_TIMEOUT=1000
 export CRT_CREDIT_EP_CTX=0
 

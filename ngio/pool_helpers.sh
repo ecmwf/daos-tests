@@ -25,17 +25,23 @@ cont_create_args=
 
 cat > cpool.sh <<EOF
 
+export LD_LIBRARY_PATH=/usr/lib64:\$LD_LIBRARY_PATH
+
+module load libfabric/latest
+export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:\$LD_LIBRARY_PATH
+
 #export CRT_PHY_ADDR_STR="ofi+sockets"
 #export FI_SOCKETS_MAX_CONN_RETRY=1
 #export FI_SOCKETS_CONN_TIMEOUT=2000
 
+#export FI_TCP_IFACE=ib0
+export FI_TCP_BIND_BEFORE_CONNECT=1
 export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+export FI_PROVIDER=tcp
 export FI_TCP_MAX_CONN_RETRY=1
 export FI_TCP_CONN_TIMEOUT=2000
 
 #export CRT_PHY_ADDR_STR="ofi+psm2"
-#export PSM2_MULTI_EP=1
-#export FI_PSM2_DISCONNECT=1
 #export FI_PSM_CONN_TIMEOUT=2000
 
 export OFI_INTERFACE=ib0
@@ -43,7 +49,6 @@ export D_LOG_MASK=
 export DD_SUBSYST=all
 export DD_MASK=all
 export DAOS_AGENT_DRPC_DIR=/tmp/daos/run/daos_agent/
-export LD_LIBRARY_PATH=/usr/lib64:\$LD_LIBRARY_PATH
 #export CRT_TIMEOUT=30
 export CRT_TIMEOUT=1000
 export CRT_CREDIT_EP_CTX=0
@@ -69,7 +74,7 @@ npools=\$(echo "\$out" | tail -n +3 | wc -l)
 
 group=\$(id -g -n)
 user=\$(id -u -n)
-out=\$(dmg pool create --label=testpool -s 900G -g \$group -u \$user -i -o \${test_src_dir}/ngio/config/daos_control.yaml)
+out=\$(dmg pool create --label=testpool -s 950G -g \$group -u \$user -i -o \${test_src_dir}/ngio/config/daos_control.yaml)
 code=\$?
 [ \$code -ne 0 ] && pkill daos_agent && exit 1
 out2=\$(echo "\$out" | grep "UUID")
@@ -101,25 +106,33 @@ function destroy_pool_cont {
 
 cat > dpool.sh <<'EOF'
 
+export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+
+module load libfabric/latest
+export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+
 #export CRT_PHY_ADDR_STR="ofi+sockets"
 #export FI_SOCKETS_MAX_CONN_RETRY=1
 #export FI_SOCKETS_CONN_TIMEOUT=2000
 
+#export FI_TCP_IFACE=ib0
+export FI_TCP_BIND_BEFORE_CONNECT=1
+#export FI_PROGRESS_MANUAL=0
+#export FI_OFI_RXM_USE_SRX=0
 export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+export FI_PROVIDER=tcp
+#export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+##export FI_PROVIDER="tcp"
 export FI_TCP_MAX_CONN_RETRY=1
 export FI_TCP_CONN_TIMEOUT=2000
 
 #export CRT_PHY_ADDR_STR="ofi+psm2"
-#export PSM2_MULTI_EP=1
-#export FI_PSM2_DISCONNECT=1
-#export FI_PSM2_CONN_TIMEOUT=2000
 
 export OFI_INTERFACE=ib0
 export D_LOG_MASK=
 export DD_SUBSYST=all
 export DD_MASK=all
 export DAOS_AGENT_DRPC_DIR=/tmp/daos/run/daos_agent/
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
 #export CRT_TIMEOUT=30
 export CRT_TIMEOUT=1000
 export CRT_CREDIT_EP_CTX=0
