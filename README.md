@@ -1,4 +1,5 @@
 # DAOS weather field I/O tests
+[![DOI](https://zenodo.org/badge/481195353.svg)](https://zenodo.org/badge/latestdoi/481195353)
 
 This repository contains source code implementing simplified weather field I/O to and from DAOS, as well as a collection of scripts to run different field I/O workloads for benchmarking. Scripts for running the IOR benchmark to generate similar benchmarking workloads are also provided. The repository is intended as complementary material of preliminary DAOS benchmarking results published by ECMWF and EPCC, and no further development or user support is planned. For any questions, see author contact details in the publication.
 
