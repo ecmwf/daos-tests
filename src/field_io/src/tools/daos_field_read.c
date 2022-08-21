@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <daos.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "daos_field_io.h"
 
@@ -44,6 +45,29 @@ do {						\
 		FAIL(__VA_ARGS__);	\
 } while (0)
 
+static bool prof = 1;
+
+static void p_s(struct timeval *before) {
+
+	if (prof) gettimeofday(before, NULL);
+
+}
+
+static void p_e(const char *wr, const char * f, int node_id, int client_id,
+	 struct timeval *before, struct timeval *after, struct timeval *result) {
+
+	char tabs[BUFLEN] = "\t\t";
+	if (prof) {
+		if (strlen(f) > 16) tabs[1] = '\0';
+		gettimeofday(after, NULL);
+		timersub(after, before, result);
+		printf("Profiling node %d client %d - daos_field_%s - %s: %s%ld.%06ld\n", 
+			node_id, client_id, wr, f, tabs,
+			(long int)result->tv_sec, (long int)result->tv_usec);
+	}
+
+}
+
 static char node[128] = "unknown";
 static daos_handle_t poh, coh;
 
@@ -55,26 +79,11 @@ int main(int argc, char** argv) {
 	uuid_t pool_uuid, co_uuid;
 
 	struct timeval tval_before, tval_after, tval_result;
-	bool prof = 1;
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-	void p_e(const char * f) {
-		char tabs[BUFLEN] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling node %d client %d - daos_field_read - %s: %s%ld.%06ld\n", 
-				node_id, client_id, f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
 
 	struct timeval tval_before_all, tval_after_all, tval_result_all;
 	if (prof) gettimeofday(&tval_before_all, NULL);
 
-	p_s();
+	p_s(&tval_before);
 
 	if (argc != 14) {
 		fprintf(stderr, "usage: daos_read POOL_ID CONT_ID INDEX_DICT STORE_DICT DATA_PATH N_REP UNIQUE N_TO_READ HOLD SLEEP NODE_ID CLIENT_ID ALL_TO_FILES\n");
@@ -118,11 +127,11 @@ int main(int argc, char** argv) {
 	rc = daos_pool_connect(pool_uuid, NULL, DAOS_PC_RW, &poh, NULL, NULL);
 	ASSERT(rc == 0, "pool connect failed with %d", rc);
 
-	p_e("init and connect time");
+	p_e("read", "init and connect time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
-	p_s();
+	p_s(&tval_before);
 	sleep(hold);
-	p_e("hold sleep time");
+	p_e("read", "hold sleep time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
 	char store_key_new[BUFLEN], * store_key_i;
 	char data_path_new[BUFLEN], * data_path_i;
@@ -131,7 +140,7 @@ int main(int argc, char** argv) {
 	size_t * len;
 	ssize_t buf_len;
 
-	p_s();
+	p_s(&tval_before);
 
 	data = (char **) malloc(nrep * sizeof(char *));
 	len = (size_t *) malloc(nrep * sizeof(size_t));
@@ -149,7 +158,7 @@ int main(int argc, char** argv) {
 	tval_before_aopen  = (struct timeval *) malloc(nrep * sizeof(struct timeval));
 	tval_after_aclose  = (struct timeval *) malloc(nrep * sizeof(struct timeval));
 
-	p_e("preproc time");
+	p_e("read", "preproc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
 	printf("THE POOL IS: %s\n", argv[1]);
 	printf("THE CONT IS: %s\n", argv[2]);
@@ -201,7 +210,7 @@ int main(int argc, char** argv) {
 	rc = daos_cont_close(coh, NULL);
 	ASSERT(rc == 0, "cont close failed");
 
-	p_s();
+	p_s(&tval_before);
 
 	char message[BUFLEN] = "";
 	struct timeval tval_result_rep, tval_result_io, tval_result_aopenclose;
@@ -243,7 +252,7 @@ int main(int argc, char** argv) {
 		if (prof) {
 			if (i == 0) {
 				printf("Timestamp before first IO: %ld.%06ld\n",
-					tval_before_io[i].tv_sec, tval_before_io[i].tv_usec);
+					(long int)tval_before_io[i].tv_sec, (long int)tval_before_io[i].tv_usec);
 			}
 
 			sprintf(message, "node %d client %d rep %d ", node_id, client_id, i);
@@ -269,7 +278,7 @@ int main(int argc, char** argv) {
 
 			if (i == (nrep - 1)) {
 				printf("Timestamp after last IO: %ld.%06ld\n",
-					tval_after_io[i].tv_sec, tval_after_io[i].tv_usec);
+					(long int)tval_after_io[i].tv_sec, (long int)tval_after_io[i].tv_usec);
 			}
 
 			//printf("THE READ DATA IS: %s\n", data[i]);
@@ -293,9 +302,9 @@ int main(int argc, char** argv) {
 	free(data);
 	free(len);
 
-	p_e("postproc wc time");
+	p_e("read", "postproc wc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
-	p_s();
+	p_s(&tval_before);
 
 	rc = daos_pool_disconnect(poh, NULL);
 	//ASSERT(rc == 0, "disconnect failed");
@@ -309,7 +318,7 @@ int main(int argc, char** argv) {
 		printf("WARNING: daos_fini failed\n");
 	}
 
-	p_e("discon and fini wc time");
+	p_e("read", "discon and fini wc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
 	if (prof) {
 		gettimeofday(&tval_after_all, NULL);

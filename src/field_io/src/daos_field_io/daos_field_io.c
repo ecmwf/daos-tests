@@ -17,6 +17,8 @@
  * does it submit to any jurisdiction.
  */
 
+#include <inttypes.h>
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -25,8 +27,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <daos.h>
 
+#include "daos_field_io.h"
 #include "daos_field_io_version.h"
 #include "daos_field_io_config.h"
 
@@ -113,12 +115,10 @@ int daos_cont_open_cache(daos_handle_t poh, uuid_t co_uuid, unsigned int mode, d
 	while (cc_visit != NULL) {
 
 		uuid_t co_uuid_cache;
-		memcpy(&co_uuid_cache, &(cc_visit->key2), sizeof(uuid_t));
-		uuid_unparse(co_uuid, co_uuid_str_1);
-		uuid_unparse(co_uuid_cache, co_uuid_str_2);
+		memcpy(&(co_uuid_cache[0]), &(cc_visit->key2[0]), sizeof(uuid_t));
 
 		if (memcmp(&(cc_visit->key1), &poh, sizeof(daos_handle_t)) == 0 && 
-			memcmp(&(cc_visit->key2), &co_uuid, sizeof(uuid_t)) == 0 && 
+			memcmp(&(cc_visit->key2[0]), &(co_uuid[0]), sizeof(uuid_t)) == 0 && 
 			cc_visit->key3 == mode) {
 			*coh = cc_visit->value;
 			return 0;
@@ -135,7 +135,7 @@ int daos_cont_open_cache(daos_handle_t poh, uuid_t co_uuid, unsigned int mode, d
 		new_entry = (struct coh_cache *) malloc(sizeof(struct coh_cache));
 
 		new_entry->key1 = poh;
-		memcpy(&(new_entry->key2), &co_uuid, sizeof(uuid_t));
+		memcpy(&(new_entry->key2[0]), &(co_uuid[0]), sizeof(uuid_t));
 		new_entry->key3 = mode;
 		new_entry->value = *coh;
 		new_entry->next = NULL;
@@ -207,10 +207,7 @@ static int get_oid(daos_handle_t coh, daos_obj_id_t* oid) {
 
 		new_entry->coh = coh;
 		new_entry->num_oids = 0;
-
-		if (oid_alloc_store != NULL) {
-			new_entry->next = oid_alloc_store;
-		}
+		new_entry->next = oid_alloc_store;
 
 		oid_alloc_store = new_entry;
 		oid_alloc_visit = oid_alloc_store;
@@ -236,6 +233,32 @@ static int get_oid(daos_handle_t coh, daos_obj_id_t* oid) {
 
 }
 
+#ifdef daos_field_io_HAVE_PROFILING
+static bool prof = 1;
+#else
+static bool prof = 0;
+#endif
+
+static void p_s(struct timeval *before) {
+
+	if (prof) gettimeofday(before, NULL);
+
+}
+
+static void p_e(const char * wr, const char * f, 
+	 struct timeval *before, struct timeval *after, struct timeval *result) {
+
+	char tabs[BUFSIZE] = "\t\t";
+	if (prof) {
+		if (strlen(f) > 16) tabs[1] = '\0';
+		gettimeofday(after, NULL);
+		timersub(after, before, result);
+		printf("Profiling daos_field_io daos_%s - %s: %s%ld.%06ld\n", wr, f, tabs,
+			(long int)result->tv_sec, (long int)result->tv_usec);
+	}
+
+}
+
 ssize_t daos_write(daos_handle_t poh, daos_handle_t coh, 
 		   char* index_key, char* store_key, 
 		   char* data, size_t len, size_t offset,
@@ -255,27 +278,6 @@ ssize_t daos_write(daos_handle_t poh, daos_handle_t coh,
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
-#ifdef daos_field_io_HAVE_PROFILING
-	bool prof = 1;
-#else
-	bool prof = 0;
-#endif
-
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-
-	void p_e(const char * f) {
-		char tabs[BUFSIZE] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling daos_field_io daos_write - %s: %s%ld.%06ld\n", f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
-
 	daos_oclass_id_t oc_main_kv = str_to_oc(oc_main_kv_str);
 	daos_oclass_id_t oc_index_kv = str_to_oc(oc_index_kv_str);
 	daos_oclass_id_t oc_store_array = str_to_oc(oc_store_array_str);
@@ -288,37 +290,37 @@ ssize_t daos_write(daos_handle_t poh, daos_handle_t coh,
 	oid_array.lo = 0;
 
 	// the uuid of the index kv is determined as the md5 of the index key
-	p_s();
+	p_s(&tval_before);
 	rc = uuid_parse("00000000-0000-0000-0000-000000000000", seed);
-	p_e("uuid_parse");
-	p_s();
-	rc = uuid_generate_md5(index_key_uuid, seed, index_key, strlen(index_key));
-	p_e("uuid_generate_md5");
-	p_s();
-	rc = uuid_generate_md5(array_uuid, index_key_uuid, store_key, strlen(store_key));
-	p_e("uuid_generate_md5_2");
+	p_e("write", "uuid_parse", &tval_before, &tval_after, &tval_result);
+	p_s(&tval_before);
+	uuid_generate_md5(index_key_uuid, seed, index_key, strlen(index_key));
+	p_e("write", "uuid_generate_md5", &tval_before, &tval_after, &tval_result);
+	p_s(&tval_before);
+	uuid_generate_md5(array_uuid, index_key_uuid, store_key, strlen(store_key));
+	p_e("write", "uuid_generate_md5_2", &tval_before, &tval_after, &tval_result);
 
-	memcpy(&(oid_array.hi), &(array_uuid), sizeof(uint64_t));
-	memcpy(&(oid_array.lo), &(array_uuid) + sizeof(uint64_t), sizeof(uint64_t));
+	memcpy(&(oid_array.hi), &(array_uuid[0]), sizeof(uint64_t));
+	memcpy(&(oid_array.lo), &(array_uuid[0]) + sizeof(uint64_t), sizeof(uint64_t));
 
 	/*
 	 * create and open array object
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	daos_array_generate_oid(coh, &oid_array, true, oc_store_array, 0, 0);
-	p_e("daos_array_generate_oid");
+	p_e("write", "daos_array_generate_oid", &tval_before, &tval_after, &tval_result);
 	gettimeofday(tv_aopen, NULL);
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_create(coh, oid_array, DAOS_TX_NONE, 1, BLKSIZE, &oh_array, NULL);
-	p_e("daos_array_create");
+	p_e("write", "daos_array_create", &tval_before, &tval_after, &tval_result);
 
 	if (rc == -1004) {
-		size_t cell_size, csize;
-		p_s();
+		daos_size_t cell_size, csize;
+		p_s(&tval_before);
 		rc = daos_array_open(coh, oid_array, DAOS_TX_NONE, DAOS_OO_RW, 
 				 &cell_size, &csize, &oh_array, NULL);
-		p_e("daos_array_open");
+		p_e("write", "daos_array_open", &tval_before, &tval_after, &tval_result);
 		if (rc != 0) {
 		printf("array open failed with %d", rc);
 		}
@@ -347,9 +349,9 @@ ssize_t daos_write(daos_handle_t poh, daos_handle_t coh,
 	d_iov_set(&iov, data, len);
 	sgl.sg_iovs = &iov;
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_write(oh_array, DAOS_TX_NONE, &iod, &sgl, NULL);
-	p_e("daos_array_write");
+	p_e("write", "daos_array_write", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array write failed with %d", rc);
@@ -357,9 +359,9 @@ ssize_t daos_write(daos_handle_t poh, daos_handle_t coh,
 		// closing it just after
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_close(oh_array, NULL);
-	p_e("daos_array_close");
+	p_e("write", "daos_array_close", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aclose, NULL);
 
@@ -395,27 +397,6 @@ exit:
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
-#ifdef daos_field_io_HAVE_PROFILING
-	bool prof = 1;
-#else
-	bool prof = 0;
-#endif
-
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-
-	void p_e(const char * f) {
-		char tabs[BUFSIZE] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling daos_field_io daos_write - %s: %s%ld.%06ld\n", f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
-
 	daos_oclass_id_t oc_main_kv = str_to_oc(oc_main_kv_str);
 	daos_oclass_id_t oc_index_kv = str_to_oc(oc_index_kv_str);
 	daos_oclass_id_t oc_store_array = str_to_oc(oc_store_array_str);
@@ -426,17 +407,17 @@ exit:
 
 	oid_kv.hi = 0;
 	oid_kv.lo = 0;
-	p_s();
+	p_s(&tval_before);
 	daos_obj_generate_oid(coh, &oid_kv, DAOS_OT_KV_HASHED, oc_main_kv, 0, 0);
-	p_e("daos_obj_generate_oid");
+	p_e("write", "daos_obj_generate_oid", &tval_before, &tval_after, &tval_result);
 
 	/* 
 	 * open/create the main kv in the provided container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(coh, oid_kv, DAOS_OO_RW, &oh_kv, NULL);
-	p_e("daos_kv_open");
+	p_e("write", "daos_kv_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("main kv open failed with %d", rc);
@@ -448,25 +429,25 @@ exit:
 	 */
 
 	// the uuid of the index kv is determined as the md5 of the index key
-	p_s();
+	p_s(&tval_before);
 	rc = uuid_parse("00000000-0000-0000-0000-000000000000", seed);
-	p_e("uuid_parse");
-	p_s();
-	rc = uuid_generate_md5(index_kv_uuid, seed, index_key, strlen(index_key));
-	p_e("uuid_generate_md5");
+	p_e("write", "uuid_parse", &tval_before, &tval_after, &tval_result);
+	p_s(&tval_before);
+	uuid_generate_md5(index_kv_uuid, seed, index_key, strlen(index_key));
+	p_e("write", "uuid_generate_md5", &tval_before, &tval_after, &tval_result);
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, NULL, NULL);
-	p_e("daos_kv_get");
+	p_e("write", "daos_kv_get", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
-		memcpy(&(oid_kv_index.hi), &(index_kv_uuid), sizeof(uint64_t));
-		memcpy(&(oid_kv_index.lo), &(index_kv_uuid) + sizeof(uint64_t), sizeof(uint64_t));
+		memcpy(&(oid_kv_index.hi), &(index_kv_uuid[0]), sizeof(uint64_t));
+		memcpy(&(oid_kv_index.lo), &(index_kv_uuid[0]) + sizeof(uint64_t), sizeof(uint64_t));
 
-		p_s();
+		p_s(&tval_before);
 		daos_obj_generate_oid(coh, &oid_kv_index, DAOS_OT_KV_HASHED, oc_index_kv, 0, 0);
-		p_e("daos_obj_generate_oid");
+		p_e("write", "daos_obj_generate_oid", &tval_before, &tval_after, &tval_result);
 
 		/* 
 		 * registering the index kv oid in the main kv
@@ -479,9 +460,9 @@ exit:
 		memcpy(index_oid_buf, &(oid_kv_index.hi), sizeof(uint64_t));
 		memcpy(index_oid_buf + sizeof(uint64_t), &(oid_kv_index.lo), sizeof(uint64_t));
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_kv_put(oh_kv, DAOS_TX_NONE, 0, index_key, 2 * sizeof(uint64_t), index_oid_buf, NULL);
-		p_e("daos_kv_put");
+		p_e("write", "daos_kv_put", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("main kv put failed");
@@ -494,9 +475,9 @@ exit:
 		 * read in the oid of the index kv
 		 */
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, index_oid_buf, NULL);
-		p_e("daos_kv_get_2");
+		p_e("write", "daos_kv_get_2", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("main kv get failed with %d", rc);
@@ -517,9 +498,9 @@ exit:
 	 * open/create the index kv
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(coh, oid_kv_index, DAOS_OO_RW, &oh_kv_index, NULL);
-	p_e("daos_kv_open_2");
+	p_e("write", "daos_kv_open_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv open failed with %d", rc);
@@ -532,23 +513,23 @@ exit:
 
 	struct timeval tval_before_aopen, tval_after_aclose, tval_result_aopenclose;
 
-	p_s();
+	p_s(&tval_before);
 	rc = get_oid(coh, &oid_array);
-	p_e("get_oid_2");
+	p_e("write", "get_oid_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("get_oid_2 failed with %d", rc);
 		goto close_index_kv;
 	}
 
-	p_s();
+	p_s(&tval_before);
 	daos_array_generate_oid(coh, &oid_array, true, oc_store_array, 0, 0);
-	p_e("daos_array_generate_oid");
+	p_e("write", "daos_array_generate_oid", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aopen, NULL);
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_create(coh, oid_array, DAOS_TX_NONE, 1, BLKSIZE, &oh_array, NULL);
-	p_e("daos_array_create");
+	p_e("write", "daos_array_create", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array create failed with %d", rc);
@@ -575,9 +556,9 @@ exit:
 	d_iov_set(&iov, data, len);
 	sgl.sg_iovs = &iov;
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_write(oh_array, DAOS_TX_NONE, &iod, &sgl, NULL);
-	p_e("daos_array_write");
+	p_e("write", "daos_array_write", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array write failed with %d", rc);
@@ -585,9 +566,9 @@ exit:
 		// closing it just after
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_close(oh_array, NULL);
-	p_e("daos_array_close");
+	p_e("write", "daos_array_close", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aclose, NULL);
 
@@ -614,9 +595,9 @@ exit:
 	memcpy(ref_buf + sizeof(uint64_t), &(oid_array.lo), sizeof(uint64_t));
 	memcpy(ref_buf + 2 * sizeof(uint64_t), &(timestamp), sizeof(struct timeval));
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_put(oh_kv_index, DAOS_TX_NONE, 0, store_key, REFLEN, ref_buf, NULL);
-	p_e("daos_kv_put_3");
+	p_e("write", "daos_kv_put_3", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv put failed");
@@ -626,13 +607,13 @@ exit:
 	res = len;
 
 close_index_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv_index, NULL);
-	p_e("daos_obj_close_1");
+	p_e("write", "daos_obj_close_1", &tval_before, &tval_after, &tval_result);
 close_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv, NULL);
-	p_e("daos_obj_close_2");
+	p_e("write", "daos_obj_close_2", &tval_before, &tval_after, &tval_result);
 exit:
 	return res;
 
@@ -657,27 +638,6 @@ exit:
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
-#ifdef daos_field_io_HAVE_PROFILING
-	bool prof = 1;
-#else
-	bool prof = 0;
-#endif
-
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-
-	void p_e(const char * f) {
-		char tabs[BUFSIZE] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling daos_field_io daos_write - %s: %s%ld.%06ld\n", f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
-
 	daos_oclass_id_t oc_main_kv = str_to_oc(oc_main_kv_str);
 	daos_oclass_id_t oc_index_kv = str_to_oc(oc_index_kv_str);
 	daos_oclass_id_t oc_store_array = str_to_oc(oc_store_array_str);
@@ -688,17 +648,17 @@ exit:
 
 	oid_kv.hi = 0;
 	oid_kv.lo = 0;
-	p_s();
+	p_s(&tval_before);
 	daos_obj_generate_oid(coh, &oid_kv, DAOS_OT_KV_HASHED, oc_main_kv, 0, 0);
-	p_e("daos_obj_generate_oid");
+	p_e("write", "daos_obj_generate_oid", &tval_before, &tval_after, &tval_result);
 
 	/* 
 	 * open/create the main kv in the provided container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(coh, oid_kv, DAOS_OO_RW, &oh_kv, NULL);
-	p_e("daos_kv_open");
+	p_e("write", "daos_kv_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("main kv open failed with %d", rc);
@@ -723,22 +683,22 @@ exit:
 	 */
 
 	// the uuid of the index container is determined as the md5 of the index key
-	p_s();
+	p_s(&tval_before);
 	rc = uuid_parse("00000000-0000-0000-0000-000000000000", seed);
-	p_e("uuid_parse");
-	p_s();
-	rc = uuid_generate_md5(index_co_uuid, seed, index_key, strlen(index_key));
-	p_e("uuid_generate_md5");
+	p_e("write", "uuid_parse", &tval_before, &tval_after, &tval_result);
+	p_s(&tval_before);
+	uuid_generate_md5(index_co_uuid, seed, index_key, strlen(index_key));
+	p_e("write", "uuid_generate_md5", &tval_before, &tval_after, &tval_result);
 
 	// the uuid of the store container is determined as the md5 of the index key
 	// using the uuid of the index container as seed.
-	p_s();
-	rc = uuid_generate_md5(store_co_uuid, index_co_uuid, index_key, strlen(index_key));
-	p_e("uuid_generate_md5_2");
+	p_s(&tval_before);
+	uuid_generate_md5(store_co_uuid, index_co_uuid, index_key, strlen(index_key));
+	p_e("write", "uuid_generate_md5_2", &tval_before, &tval_after, &tval_result);
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, NULL, NULL);
-	p_e("daos_kv_get");
+	p_e("write", "daos_kv_get", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
@@ -746,9 +706,9 @@ exit:
 		 * create index container
 		 */
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_cont_create(poh, index_co_uuid, NULL, NULL);
-		p_e("daos_cont_create");
+		p_e("write", "daos_cont_create", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("index container create failed with %d", rc);
@@ -767,11 +727,11 @@ exit:
 		 * get a rc = 0, and will execute the following daos_kv_put
 		 */
 
-		memcpy(co_uuid_buf, &(index_co_uuid), UUIDLEN);
+		memcpy(co_uuid_buf, &(index_co_uuid[0]), UUIDLEN);
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_kv_put(oh_kv, DAOS_TX_NONE, 0, index_key, 1 * UUIDLEN, co_uuid_buf, NULL);
-		p_e("daos_kv_put");
+		p_e("write", "daos_kv_put", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("main kv put failed");
@@ -784,16 +744,16 @@ exit:
 		 * read in the uuid of the index container
 		 */
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, co_uuid_buf, NULL);
-		p_e("daos_kv_get_2");
+		p_e("write", "daos_kv_get_2", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("main kv get failed with %d", rc);
 			goto close_kv;
 		}
 
-		memcpy(&(index_co_uuid), co_uuid_buf, UUIDLEN);
+		memcpy(&(index_co_uuid[0]), co_uuid_buf, UUIDLEN);
 
 	} else if (rc != 0) {
 
@@ -806,13 +766,13 @@ exit:
 	 * open index container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, index_co_uuid, DAOS_COO_RW, &index_coh);
 	} else {
 		rc = daos_cont_open(poh, index_co_uuid, DAOS_COO_RW, &index_coh, NULL, NULL);
 	}
-	p_e("daos_cont_open");
+	p_e("write", "daos_cont_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index container open failed with %d", rc);
@@ -825,17 +785,17 @@ exit:
 
 	oid_kv_index.hi = 0;
 	oid_kv_index.lo = 0;
-	p_s();
+	p_s(&tval_before);
 	daos_obj_generate_oid(index_coh, &oid_kv_index, DAOS_OT_KV_HASHED, oc_index_kv, 0, 0);
-	p_e("daos_obj_generate_oid_2");
+	p_e("write", "daos_obj_generate_oid_2", &tval_before, &tval_after, &tval_result);
 
 	/* 
 	 * open/create the index kv in the index container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(index_coh, oid_kv_index, DAOS_OO_RW, &oh_kv_index, NULL);
-	p_e("daos_kv_open_2");
+	p_e("write", "daos_kv_open_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv open failed with %d", rc);
@@ -846,9 +806,9 @@ exit:
 	 * read in the store_co_uuid key, if exists
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv_index, DAOS_TX_NONE, 0, "store_co_uuid", &size, NULL, NULL);
-	p_e("daos_kv_get_3");
+	p_e("write", "daos_kv_get_3", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
@@ -856,9 +816,9 @@ exit:
 		 * create store container
 		 */
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_cont_create(poh, store_co_uuid, NULL, NULL);
-		p_e("daos_cont_create_2");
+		p_e("write", "daos_cont_create_2", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("store container create failed with %d", rc);
@@ -873,12 +833,12 @@ exit:
 		 * get a rc = 0, and will execute the following daos_kv_put
 		 */
 
-		memcpy(store_co_uuid_buf, &(store_co_uuid), UUIDLEN);
+		memcpy(store_co_uuid_buf, &(store_co_uuid[0]), UUIDLEN);
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_kv_put(oh_kv_index, DAOS_TX_NONE, 0, "store_co_uuid", 
 				 1 * UUIDLEN, store_co_uuid_buf, NULL);
-		p_e("daos_kv_put_2");
+		p_e("write", "daos_kv_put_2", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("index kv put of store_co_uuid failed");
@@ -891,17 +851,17 @@ exit:
 		 * read in the uuid of the store container
 		 */
 
-		p_s();
+		p_s(&tval_before);
 		rc = daos_kv_get(oh_kv_index, DAOS_TX_NONE, 0, "store_co_uuid", 
 				 &size, store_co_uuid_buf, NULL);
-		p_e("daos_kv_get_4");
+		p_e("write", "daos_kv_get_4", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
 			printf("index kv get of store_co_uuid failed with %d", rc);
 			goto close_index_kv;
 		}
 
-		memcpy(&(store_co_uuid), store_co_uuid_buf, UUIDLEN);
+		memcpy(&(store_co_uuid[0]), store_co_uuid_buf, UUIDLEN);
 
 	} else if (rc != 0) {
 
@@ -914,13 +874,13 @@ exit:
 	 *  open store container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, store_co_uuid, DAOS_COO_RW, &store_coh);
 	} else {
 		rc = daos_cont_open(poh, store_co_uuid, DAOS_COO_RW, &store_coh, NULL, NULL);
 	}
-	p_e("daos_cont_open_2");
+	p_e("write", "daos_cont_open_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("store container open failed with %d", rc);
@@ -934,22 +894,22 @@ exit:
 	struct timeval tval_before_aopen, tval_after_aclose, tval_result_aopenclose;
 
 	uuid_unparse(store_co_uuid, store_co_uuid_str);	
-	p_s();
+	p_s(&tval_before);
 	rc = get_oid(store_coh, &oid_array);
-	p_e("get_oid");
+	p_e("write", "get_oid", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("get_oid failed with %d", rc);
 		goto close_store_cont;
 	}
 
-	p_s();
+	p_s(&tval_before);
 	daos_array_generate_oid(store_coh, &oid_array, true, oc_store_array, 0, 0);
-	p_e("daos_array_generate_oid");
+	p_e("write", "daos_array_generate_oid", &tval_before, &tval_after, &tval_result);
 	gettimeofday(tv_aopen, NULL);
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_create(store_coh, oid_array, DAOS_TX_NONE, 1, BLKSIZE, &oh_array, NULL);
-	p_e("daos_array_create");
+	p_e("write", "daos_array_create", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array create failed with %d", rc);
@@ -976,9 +936,9 @@ exit:
 	d_iov_set(&iov, data, len);
 	sgl.sg_iovs = &iov;
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_write(oh_array, DAOS_TX_NONE, &iod, &sgl, NULL);
-	p_e("daos_array_write");
+	p_e("write", "daos_array_write", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array write failed with %d", rc);
@@ -986,9 +946,9 @@ exit:
 		// closing it just after
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_close(oh_array, NULL);
-	p_e("daos_array_close");
+	p_e("write", "daos_array_close", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aclose, NULL);
 
@@ -1011,14 +971,14 @@ exit:
 
 	gettimeofday(&timestamp, NULL);
 
-	memcpy(ref_buf, &(store_co_uuid), UUIDLEN);
+	memcpy(ref_buf, &(store_co_uuid[0]), UUIDLEN);
 	memcpy(ref_buf + UUIDLEN, &(oid_array.hi), sizeof(uint64_t));
 	memcpy(ref_buf + UUIDLEN + sizeof(uint64_t), &(oid_array.lo), sizeof(uint64_t));
 	memcpy(ref_buf + UUIDLEN + 2 * sizeof(uint64_t), &(timestamp), sizeof(struct timeval));
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_put(oh_kv_index, DAOS_TX_NONE, 0, store_key, REFLEN, ref_buf, NULL);
-	p_e("daos_kv_put_3");
+	p_e("write", "daos_kv_put_3", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv put failed");
@@ -1029,24 +989,24 @@ exit:
 
 close_store_cont:
 	if (!cc_use) {
-		p_s();
+		p_s(&tval_before);
 		rc = daos_cont_close(store_coh, NULL);
-		p_e("daos_cont_close_1");
+		p_e("write", "daos_cont_close_1", &tval_before, &tval_after, &tval_result);
 	}
 close_index_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv_index, NULL);
-	p_e("daos_obj_close_1");
+	p_e("write", "daos_obj_close_1", &tval_before, &tval_after, &tval_result);
 close_index_cont:
 	if (!cc_use) {
-		p_s();
+		p_s(&tval_before);
 		rc = daos_cont_close(index_coh, NULL);
-		p_e("daos_cont_close_2");
+		p_e("write", "daos_cont_close_2", &tval_before, &tval_after, &tval_result);
 	}
 close_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv, NULL);
-	p_e("daos_obj_close_2");
+	p_e("write", "daos_obj_close_2", &tval_before, &tval_after, &tval_result);
 exit:
 	return res;
 
@@ -1077,26 +1037,6 @@ ssize_t daos_read(daos_handle_t poh, daos_handle_t coh,
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
-#ifdef daos_field_io_HAVE_PROFILING
-	bool prof = 1;
-#else
-	bool prof = 0;
-#endif
-
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-	void p_e(const char * f) {
-		char tabs[BUFSIZE] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling daos_field_io daos_read - %s: %s%ld.%06ld\n", f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
-
 	daos_oclass_id_t oc_main_kv = str_to_oc(oc_main_kv_str);
 	daos_oclass_id_t oc_index_kv = str_to_oc(oc_index_kv_str);
 	daos_oclass_id_t oc_store_array = str_to_oc(oc_store_array_str);
@@ -1109,34 +1049,34 @@ ssize_t daos_read(daos_handle_t poh, daos_handle_t coh,
 	oid_array.lo = 0;
 
 	// the uuid of the index kv is determined as the md5 of the index key
-	p_s();
+	p_s(&tval_before);
 	rc = uuid_parse("00000000-0000-0000-0000-000000000000", seed);
-	p_e("uuid_parse");
-	p_s();
-	rc = uuid_generate_md5(index_key_uuid, seed, index_key, strlen(index_key));
-	p_e("uuid_generate_md5");
-	p_s();
-	rc = uuid_generate_md5(array_uuid, index_key_uuid, store_key, strlen(store_key));
-	p_e("uuid_generate_md5_2");
+	p_e("read", "uuid_parse", &tval_before, &tval_after, &tval_result);
+	p_s(&tval_before);
+	uuid_generate_md5(index_key_uuid, seed, index_key, strlen(index_key));
+	p_e("read", "uuid_generate_md5", &tval_before, &tval_after, &tval_result);
+	p_s(&tval_before);
+	uuid_generate_md5(array_uuid, index_key_uuid, store_key, strlen(store_key));
+	p_e("read", "uuid_generate_md5_2", &tval_before, &tval_after, &tval_result);
 
-	memcpy(&(oid_array.hi), &(array_uuid), sizeof(uint64_t));
-	memcpy(&(oid_array.lo), &(array_uuid) + sizeof(uint64_t), sizeof(uint64_t));
+	memcpy(&(oid_array.hi), &(array_uuid[0]), sizeof(uint64_t));
+	memcpy(&(oid_array.lo), &(array_uuid[0]) + sizeof(uint64_t), sizeof(uint64_t));
 
-	p_s();
+	p_s(&tval_before);
 	daos_array_generate_oid(coh, &oid_array, true, oc_store_array, 0, 0);
-	p_e("daos_array_generate_oid");
+	p_e("read", "daos_array_generate_oid", &tval_before, &tval_after, &tval_result);
 
 	/*
 	 * open array object
 	 */
 
-	size_t cell_size, csize;
+	daos_size_t cell_size, csize;
 
 	gettimeofday(tv_aopen, NULL);
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_open(coh, oid_array, DAOS_TX_NONE, DAOS_OO_RW,
 				 &cell_size, &csize, &oh_array, NULL);
-	p_e("daos_array_open");
+	p_e("read", "daos_array_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array open failed with %d", rc);
@@ -1148,9 +1088,9 @@ ssize_t daos_read(daos_handle_t poh, daos_handle_t coh,
 	 */
 
 	daos_size_t array_size;
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_get_size(oh_array, DAOS_TX_NONE, &array_size, NULL);
-	p_e("daos_array_get_size");
+	p_e("read", "daos_array_get_size", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array get size failed with %d", rc);
@@ -1158,9 +1098,9 @@ ssize_t daos_read(daos_handle_t poh, daos_handle_t coh,
 	}
 
 	char *out = NULL;
-	p_s();
+	p_s(&tval_before);
 	out = (char*) realloc(out, array_size * sizeof(char));
-	p_e("realloc");
+	p_e("read", "realloc", &tval_before, &tval_after, &tval_result);
 
 	/*
 	 * read array
@@ -1180,9 +1120,9 @@ ssize_t daos_read(daos_handle_t poh, daos_handle_t coh,
 	d_iov_set(&iov, out, array_size);
 	sgl.sg_iovs = &iov;
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_read(oh_array, DAOS_TX_NONE, &iod, &sgl, NULL);
-	p_e("daos_array_read");
+	p_e("read", "daos_array_read", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array read failed with %d", rc);
@@ -1195,9 +1135,9 @@ ssize_t daos_read(daos_handle_t poh, daos_handle_t coh,
 	res = (ssize_t) array_size;
 
 close_array:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_close(oh_array, NULL);
-	p_e("daos_array_close");
+	p_e("read", "daos_array_close", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aclose, NULL);
 exit:
@@ -1219,26 +1159,6 @@ exit:
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
-#ifdef daos_field_io_HAVE_PROFILING
-	bool prof = 1;
-#else
-	bool prof = 0;
-#endif
-
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-	void p_e(const char * f) {
-		char tabs[BUFSIZE] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling daos_field_io daos_read - %s: %s%ld.%06ld\n", f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
-
 	daos_oclass_id_t oc_main_kv = str_to_oc(oc_main_kv_str);
 	daos_oclass_id_t oc_index_kv = str_to_oc(oc_index_kv_str);
 	daos_oclass_id_t oc_store_array = str_to_oc(oc_store_array_str);
@@ -1249,17 +1169,17 @@ exit:
 
 	oid_kv.hi = 0;
 	oid_kv.lo = 0;
-	p_s();
+	p_s(&tval_before);
 	daos_obj_generate_oid(coh, &oid_kv, DAOS_OT_KV_HASHED, oc_main_kv, 0, 0);
-	p_e("daos_obj_generate_oid");
+	p_e("read", "daos_obj_generate_oid", &tval_before, &tval_after, &tval_result);
 
 	/*
 	 * open/create the main kv in the provided container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(coh, oid_kv, DAOS_OO_RW, &oh_kv, NULL);
-	p_e("daos_kv_open");
+	p_e("read", "daos_kv_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("main kv open failed with %d", rc);
@@ -1270,9 +1190,9 @@ exit:
 	 * check presence of index_key in the main kv
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, NULL, NULL);
-	p_e("daos_kv_get");
+	p_e("read", "daos_kv_get", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
@@ -1289,9 +1209,9 @@ exit:
 
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, index_oid_buf, NULL);
-	p_e("daos_kv_get_2");
+	p_e("read", "daos_kv_get_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("main kv get failed with %d", rc);
@@ -1308,9 +1228,9 @@ exit:
 	 * open/create the index kv
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(coh, oid_kv_index, DAOS_OO_RW, &oh_kv_index, NULL);
-	p_e("daos_kv_open_2");
+	p_e("read", "daos_kv_open_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv open failed with %d", rc);
@@ -1324,9 +1244,9 @@ exit:
 
 	char ref_buf[REFLEN] = "";
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv_index, DAOS_TX_NONE, 0, store_key, &size, NULL, NULL);
-	p_e("daos_kv_get_3");
+	p_e("read", "daos_kv_get_3", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
@@ -1340,9 +1260,9 @@ exit:
 
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv_index, DAOS_TX_NONE, 0, store_key, &size, ref_buf, NULL);
-	p_e("daos_kv_get_4");
+	p_e("read", "daos_kv_get_4", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv get failed with %d", rc);
@@ -1356,13 +1276,13 @@ exit:
 	 * open array object
 	 */
 
-	size_t cell_size, csize;
+	daos_size_t cell_size, csize;
 
 	gettimeofday(tv_aopen, NULL);
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_open(coh, oid_array, DAOS_TX_NONE, DAOS_OO_RW,
 				 &cell_size, &csize, &oh_array, NULL);
-	p_e("daos_array_open");
+	p_e("read", "daos_array_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array open failed with %d", rc);
@@ -1374,9 +1294,9 @@ exit:
 	 */
 
 	daos_size_t array_size;
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_get_size(oh_array, DAOS_TX_NONE, &array_size, NULL);
-	p_e("daos_array_get_size");
+	p_e("read", "daos_array_get_size", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array get size failed with %d", rc);
@@ -1384,9 +1304,9 @@ exit:
 	}
 
 	char *out = NULL;
-	p_s();
+	p_s(&tval_before);
 	out = (char*) realloc(out, array_size * sizeof(char));
-	p_e("realloc");
+	p_e("read", "realloc", &tval_before, &tval_after, &tval_result);
 
 	/*
 	 * read array
@@ -1406,9 +1326,9 @@ exit:
 	d_iov_set(&iov, out, array_size);
 	sgl.sg_iovs = &iov;
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_read(oh_array, DAOS_TX_NONE, &iod, &sgl, NULL);
-	p_e("daos_array_read");
+	p_e("read", "daos_array_read", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array read failed with %d", rc);
@@ -1421,20 +1341,20 @@ exit:
 	res = (ssize_t) array_size;
 
 close_array:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_close(oh_array, NULL);
-	p_e("daos_array_close");
+	p_e("read", "daos_array_close", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aclose, NULL);
 
 close_index_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv_index, NULL);
-	p_e("daos_obj_close");
+	p_e("read", "daos_obj_close", &tval_before, &tval_after, &tval_result);
 close_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv, NULL);
-	p_e("daos_obj_close_2");
+	p_e("read", "daos_obj_close_2", &tval_before, &tval_after, &tval_result);
 exit:
 	return res;
 
@@ -1458,26 +1378,6 @@ exit:
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
-#ifdef daos_field_io_HAVE_PROFILING
-	bool prof = 1;
-#else
-	bool prof = 0;
-#endif
-
-	void p_s() {
-		if (prof) gettimeofday(&tval_before, NULL);
-	}
-	void p_e(const char * f) {
-		char tabs[BUFSIZE] = "\t\t";
-		if (prof) {
-			if (strlen(f) > 16) tabs[1] = '\0';
-			gettimeofday(&tval_after, NULL);
-			timersub(&tval_after, &tval_before, &tval_result);
-			printf("Profiling daos_field_io daos_read - %s: %s%ld.%06ld\n", f, tabs,
-				(long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
-		}
-	}
-
 	daos_oclass_id_t oc_main_kv = str_to_oc(oc_main_kv_str);
 	daos_oclass_id_t oc_index_kv = str_to_oc(oc_index_kv_str);
 	daos_oclass_id_t oc_store_array = str_to_oc(oc_store_array_str);
@@ -1488,17 +1388,17 @@ exit:
 
 	oid_kv.hi = 0;
 	oid_kv.lo = 0;
-	p_s();
+	p_s(&tval_before);
 	daos_obj_generate_oid(coh, &oid_kv, DAOS_OT_KV_HASHED, oc_main_kv, 0, 0);
-	p_e("daos_obj_generate_oid");
+	p_e("read", "daos_obj_generate_oid", &tval_before, &tval_after, &tval_result);
 
 	/*
 	 * open/create the main kv in the provided container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(coh, oid_kv, DAOS_OO_RW, &oh_kv, NULL);
-	p_e("daos_kv_open");
+	p_e("read", "daos_kv_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("main kv open failed with %d", rc);
@@ -1509,9 +1409,9 @@ exit:
 	 * check presence of index_key in the main kv
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, NULL, NULL);
-	p_e("daos_kv_get");
+	p_e("read", "daos_kv_get", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
@@ -1528,28 +1428,28 @@ exit:
 
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv, DAOS_TX_NONE, 0, index_key, &size, co_uuid_buf, NULL);
-	p_e("daos_kv_get_2");
+	p_e("read", "daos_kv_get_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("main kv get failed with %d", rc);
 		goto close_kv;
 	}
 
-	memcpy(&(index_co_uuid), co_uuid_buf, UUIDLEN);
+	memcpy(&(index_co_uuid[0]), co_uuid_buf, UUIDLEN);
 
 	/*
 	 * open index container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, index_co_uuid, DAOS_COO_RW, &index_coh);
 	} else {
 		rc = daos_cont_open(poh, index_co_uuid, DAOS_COO_RW, &index_coh, NULL, NULL);
 	}
-	p_e("daos_cont_open");
+	p_e("read", "daos_cont_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index container open failed with %d", rc);
@@ -1562,13 +1462,13 @@ exit:
 
 	oid_kv_index.hi = 0;
 	oid_kv_index.lo = 0;
-	p_s();
+	p_s(&tval_before);
 	daos_obj_generate_oid(index_coh, &oid_kv_index, DAOS_OT_KV_HASHED, oc_index_kv, 0, 0);
-	p_e("daos_obj_generate_oid_2");
+	p_e("read", "daos_obj_generate_oid_2", &tval_before, &tval_after, &tval_result);
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_open(index_coh, oid_kv_index, DAOS_OO_RW, &oh_kv_index, NULL);
-	p_e("daos_kv_open_2");
+	p_e("read", "daos_kv_open_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv open failed with %d", rc);
@@ -1582,9 +1482,9 @@ exit:
 
 	char ref_buf[REFLEN] = "";
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv_index, DAOS_TX_NONE, 0, store_key, &size, NULL, NULL);
-	p_e("daos_kv_get_3");
+	p_e("read", "daos_kv_get_3", &tval_before, &tval_after, &tval_result);
 
 	if (rc == 0 && size == 0) {
 
@@ -1598,16 +1498,16 @@ exit:
 
 	}
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_kv_get(oh_kv_index, DAOS_TX_NONE, 0, store_key, &size, ref_buf, NULL);
-	p_e("daos_kv_get_4");
+	p_e("read", "daos_kv_get_4", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("index kv get failed with %d", rc);
 		goto close_index_kv;
 	}
 
-	memcpy(&(store_co_uuid), ref_buf, UUIDLEN);
+	memcpy(&(store_co_uuid[0]), ref_buf, UUIDLEN);
 	memcpy(&(oid_array.hi), ref_buf + UUIDLEN, sizeof(uint64_t));
 	memcpy(&(oid_array.lo), ref_buf + UUIDLEN + sizeof(uint64_t), sizeof(uint64_t));
 
@@ -1615,13 +1515,13 @@ exit:
 	 * open store container
 	 */
 
-	p_s();
+	p_s(&tval_before);
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, store_co_uuid, DAOS_COO_RW, &store_coh);
 	} else {
 		rc = daos_cont_open(poh, store_co_uuid, DAOS_COO_RW, &store_coh, NULL, NULL);
 	}
-	p_e("daos_cont_open_2");
+	p_e("read", "daos_cont_open_2", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("store container open failed with %d", rc);
@@ -1632,13 +1532,13 @@ exit:
 	 * open array object
 	 */
 
-	size_t cell_size, csize;
+	daos_size_t cell_size, csize;
 
 	gettimeofday(tv_aopen, NULL);
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_open(store_coh, oid_array, DAOS_TX_NONE, DAOS_OO_RW,
 				 &cell_size, &csize, &oh_array, NULL);
-	p_e("daos_array_open");
+	p_e("read", "daos_array_open", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array open failed with %d", rc);
@@ -1650,9 +1550,9 @@ exit:
 	 */
 
 	daos_size_t array_size;
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_get_size(oh_array, DAOS_TX_NONE, &array_size, NULL);
-	p_e("daos_array_get_size");
+	p_e("read", "daos_array_get_size", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array get size failed with %d", rc);
@@ -1660,9 +1560,9 @@ exit:
 	}
 
 	char *out = NULL;
-	p_s();
+	p_s(&tval_before);
 	out = (char*) realloc(out, array_size * sizeof(char));
-	p_e("realloc");
+	p_e("read", "realloc", &tval_before, &tval_after, &tval_result);
 
 	/*
 	 * read array
@@ -1682,9 +1582,9 @@ exit:
 	d_iov_set(&iov, out, array_size);
 	sgl.sg_iovs = &iov;
 
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_read(oh_array, DAOS_TX_NONE, &iod, &sgl, NULL);
-	p_e("daos_array_read");
+	p_e("read", "daos_array_read", &tval_before, &tval_after, &tval_result);
 
 	if (rc != 0) {
 		printf("array read failed with %d", rc);
@@ -1697,32 +1597,32 @@ exit:
 	res = (ssize_t) array_size;
 
 close_array:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_array_close(oh_array, NULL);
-	p_e("daos_array_close");
+	p_e("read", "daos_array_close", &tval_before, &tval_after, &tval_result);
 
 	gettimeofday(tv_aclose, NULL);
 
 close_store_cont:
 	if (!cc_use) {
-		p_s();
+		p_s(&tval_before);
 		rc = daos_cont_close(store_coh, NULL);
-		p_e("daos_cont_close");
+		p_e("read", "daos_cont_close", &tval_before, &tval_after, &tval_result);
 	}
 close_index_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv_index, NULL);
-	p_e("daos_obj_close");
+	p_e("read", "daos_obj_close", &tval_before, &tval_after, &tval_result);
 close_index_cont:
 	if (!cc_use) {
-		p_s();
+		p_s(&tval_before);
 		rc = daos_cont_close(index_coh, NULL);
-		p_e("daos_cont_close_2");
+		p_e("read", "daos_cont_close_2", &tval_before, &tval_after, &tval_result);
 	}
 close_kv:
-	p_s();
+	p_s(&tval_before);
 	rc = daos_obj_close(oh_kv, NULL);
-	p_e("daos_obj_close_2");
+	p_e("read", "daos_obj_close_2", &tval_before, &tval_after, &tval_result);
 exit:
 	return res;
 
