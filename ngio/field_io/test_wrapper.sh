@@ -28,6 +28,7 @@ test_name=$1
 shift
 
 fabric_provider=tcp
+dummy_daos=OFF
 simplified=OFF
 simplified_kvs=OFF
 oc_main_kv=OC_SX
@@ -56,6 +57,7 @@ SX by default.\n\n\
 SX by default.\n\n\
 --ocs|--oc-store-array <OC_SPEC>\n\nspecify a DAOS object class to be used for the store array objects.\n\
 S1 by default.\n\n\
+--dummy\n\nFlag to enable use of dummy DAOS.\n\n\
 -h|--help\n\nshow this menu\
 "
     exit 0
@@ -88,6 +90,10 @@ S1 by default.\n\n\
     shift
     shift
     ;;
+    --dummy)
+    dummy_daos=ON
+    shift
+    ;;
     *)
     OTHER+=( "$1" )
     shift
@@ -100,12 +106,43 @@ forward_args=("${OTHER[@]}")
 
 profiling=OFF
 test_src_dir=$HOME/daos-tests
-field_io_shared_dir=$test_src_dir/src/field_io/build/prof_${profiling}_simplified_${simplified}_simplified_kvs_${simplified_kvs}_oc_main_kv_${oc_main_kv}_oc_index_kv_${oc_index_kv}_oc_store_array_${oc_store_array}
+build_root=$test_src_dir/src/field_io/build
+field_io_shared_dir=$build_root/dummy_daos_${dummy_daos}_prof_${profiling}_simplified_${simplified}_simplified_kvs_${simplified_kvs}_oc_main_kv_${oc_main_kv}_oc_index_kv_${oc_index_kv}_oc_store_array_${oc_store_array}
 ecbuild_path=$HOME/ecbuild/bin
 daos_root=/usr
 uuid_root=$HOME/install
 
+fdb_src_dir=$HOME/git/fdb-bundle
+fdb_build_dir=$HOME/build/fdb-bundle
+
 if [ "$SLURM_NODEID" -eq 0 ] ; then
+
+	# Compile fdb5 with dummy DAOS
+
+	if [[ "$dummy_daos" == "ON" ]] ; then
+	
+		if [ ! -d $fdb_build_dir ] ; then
+
+			echo "ERROR: could not find built fdb with dummy DAOS under ${fdb_build_dir}. Please build beforehand."
+			exit 1
+
+			#mkdir -p $fdb_build_dir
+			#cd $fdb_build_dir
+			#module load ninja
+			#module load cmake
+			#export UUID_ROOT=${uuid_root}
+			#sed -i -e 's#TARGET daos *$#TARGET daos TYPE STATIC#' \
+			#   ${fdb_src_dir}/fdb5/src/dummy_daos/CMakeLists.txt
+			#cmake -G Ninja $fdb_src_dir -DENABLE_DUMMY_DAOS=ON -DENABLE_AEC=OFF
+			#ninja
+			#ctest -j 12 -R daos
+			#cmake --install . --prefix .
+	
+		fi
+
+		export FDB5_ROOT="$fdb_build_dir"
+		
+	fi
 
 	# Compile daos rw binaries
 
@@ -117,10 +154,17 @@ if [ "$SLURM_NODEID" -eq 0 ] ; then
 		export PATH="$ecbuild_path:$PATH"
 		export DAOS_ROOT="$daos_root"
 		export UUID_ROOT="$uuid_root"
+		export FDB5_ROOT="$fdb_build_dir"
+		export CC=gcc
+		sed -i -e 's#TARGET daos_field_io *$#TARGET daos_field_io TYPE STATIC#' \
+		    $test_src_dir/src/field_io/src/daos_field_io/CMakeLists.txt
+		sed -i -e 's#set(EXEC_LIBS daos daos_field_io) *$#set(EXEC_LIBS daos daos_field_io uuid)#' \
+		    $test_src_dir/src/field_io/src/tools/CMakeLists.txt
 		ecbuild $test_src_dir/src/field_io \
 			-DENABLE_PROFILING="$profiling" \
 			-DENABLE_SIMPLIFIED="$simplified" \
 			-DENABLE_SIMPLIFIED_KVS="$simplified_kvs" \
+			-DENABLE_DUMMY_DAOS="$dummy_daos" \
 			-DDAOS_FIELD_IO_OC_MAIN_KV="$oc_main_kv" \
 			-DDAOS_FIELD_IO_OC_INDEX_KV="$oc_index_kv" \
 			-DDAOS_FIELD_IO_OC_STORE_ARRAY="$oc_store_array"
@@ -175,7 +219,19 @@ else
 
 fi
 
+
+if [[ "$dummy_daos" == "ON" ]] ; then
+
+	export PATH="$field_io_shared_dir/bin:$PATH"
+
+	test_dir=/newlust/test_field_io_tmp
+	export DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
+
+else
+
 export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+
+module load cmake
 
 export PATH="$field_io_shared_dir/bin:$PATH"
 export LD_LIBRARY_PATH="$field_io_shared_dir/lib:$LD_LIBRARY_PATH"
@@ -194,10 +250,10 @@ if [ "$fabric_provider" == "sockets" ] ; then
 	export FI_SOCKETS_MAX_CONN_RETRY=1
 	export FI_SOCKETS_CONN_TIMEOUT=2000
 elif [ "$fabric_provider" == "tcp" ] ; then
-    #export FI_TCP_IFACE=ib0
-    export FI_TCP_BIND_BEFORE_CONNECT=1
-    export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
-    export FI_PROVIDER=tcp
+	#export FI_TCP_IFACE=ib0
+	export FI_TCP_BIND_BEFORE_CONNECT=1
+	export CRT_PHY_ADDR_STR="ofi+tcp;ofi_rxm"
+	export FI_PROVIDER=tcp
 
 	export FI_TCP_MAX_CONN_RETRY=1
 	export FI_TCP_CONN_TIMEOUT=2000
@@ -219,9 +275,13 @@ daos_agent -o $test_src_dir/ngio/config/daos_agent.yaml -i &
 
 sleep 5
 
+fi
+
+
+
 cd $test_src_dir/ngio
 
-[[ "$test_name" == "test_field_io" ]] && forward_args+=( "--node-id" "$SLURM_NODEID" )
+[[ "$test_name" == "test_field_io" ]] && forward_args+=( "--num-nodes" "$SLURM_JOB_NUM_NODES" "--node-id" "$SLURM_NODEID" )
 
 end=`date +%s`
 
@@ -236,7 +296,13 @@ test_time=$((end-start))
 
 wc_time=$((setup_time+test_time))
 
+
+
+if [[ "$dummy_daos" != "ON" ]] ; then
 pkill daos_agent
+fi
+
+
 
 echo "Profiling node $SLURM_NODEID - setup wc time: $setup_time"
 echo "Profiling node $SLURM_NODEID - $test_name total wc time: $test_time"

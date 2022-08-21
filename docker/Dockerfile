@@ -68,8 +68,9 @@ RUN set -eux \
 	&& uuid_static_lib=$(find $(pwd) -iname "*libuuid.a*" | tail -n 1) \
 	&& uuid_headers=$(find $(pwd) -iname "*uuid.h*" | tail -n 1) \
 	&& cd $install_dir \
+	&& mkdir uuid \
 	&& cp $uuid_static_lib . \
-	&& cp $uuid_headers . \
+	&& cp $uuid_headers ./uuid \
 	&& rm -rf rpms src
 
 # Install ecbuild
@@ -80,6 +81,8 @@ RUN set -eux \
 # Build
 COPY src /root/daos-tests/src
 RUN set -eux \
+    && sed -i -e 's#TARGET daos_field_io *$#TARGET daos_field_io TYPE STATIC#' $HOME/daos-tests/src/field_io/src/daos_field_io/CMakeLists.txt \
+    && sed -i -e 's#set(EXEC_LIBS daos daos_field_io) *$#set(EXEC_LIBS daos daos_field_io uuid)#' $HOME/daos-tests/src/field_io/src/tools/CMakeLists.txt
 	&& export PATH="$HOME/ecbuild/bin:$PATH" \
 	&& export DAOS_ROOT="/usr" \
 	&& export UUID_ROOT="$HOME/local" \

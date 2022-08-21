@@ -16,10 +16,12 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+set(EXEC_LIBS daos daos_field_io)
+
 ecbuild_add_executable( TARGET daos_field_write
 	SOURCES daos_field_write.c
-	LIBS daos gurt daos_common uuid daos_field_io )
+	LIBS ${EXEC_LIBS} )
 
 ecbuild_add_executable( TARGET daos_field_read
 	SOURCES daos_field_read.c
-	LIBS daos gurt daos_common uuid daos_field_io )
+	LIBS ${EXEC_LIBS} )

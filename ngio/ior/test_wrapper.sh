@@ -64,6 +64,11 @@ elif [[ "$ior_api" == "MPIIO" ]] ; then
 	export IOR_HINT__MPI__romio_daos_obj_class=$oc
 	export DAOS_BYPASS_DUNS=1
 	export I_MPI_OFI_LIBRARY_INTERNAL=0
+elif [[ "$ior_api" == "POSIX" ]] ; then
+	module load mpich
+	module load packages-oneapi
+	module load compiler
+	ior_params="-o /newlust/test_field_io_tmp/tmp_dir_fdb5_dummy_daos/${pool}/${cont}/file_name"
 else
 	echo "Unsupported IOR API" && exit 1
 fi
@@ -72,7 +77,15 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 
 	ior_build_dir=$ior_shared_dir/${ior_api}
 
-	if [ ! -d $ior_build_dir ] ; then
+    if [ ! -d $ior_build_dir ] ; then
+    if [[ "$ior_api" == "POSIX" ]] ; then
+		cd $ior_src
+		make distclean
+		./bootstrap
+		./configure --prefix=$ior_build_dir
+		make
+		make install
+    else
 		cd $ior_src
 	
 		# these modifications are intended for IOR 3.3.0rc1 to work with DAOS 1.2
@@ -89,8 +102,13 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 		make
 		make install
 	fi
+    fi
 
 fi
+
+test_src_dir=$HOME/daos-tests
+
+if [[ "$ior_api" != "POSIX" ]] ; then
 
 if [ "$fabric_provider" == "sockets" ] ; then
 	export CRT_PHY_ADDR_STR="ofi+sockets"
@@ -123,8 +141,6 @@ export DAOS_AGENT_DRPC_DIR=/tmp/daos/run/daos_agent/
 export CRT_TIMEOUT=1000
 export CRT_CREDIT_EP_CTX=0
 
-test_src_dir=$HOME/daos-tests
-
 rm -rf /tmp/daos/log
 
 mkdir -p /tmp/daos/log
@@ -134,6 +150,8 @@ chmod 0755 /tmp/daos/run/daos_agent
 daos_agent -o $test_src_dir/ngio/config/daos_agent.yaml -i &
 
 sleep 5
+
+fi  # end if ior_api != POSIX
 
 if [ $SLURM_NODEID -eq 0 ] ; then
 
@@ -208,4 +226,4 @@ else
 
 fi
 
-pkill daos_agent
+[[ "$ior_api" == "POSIX" ]] && pkill daos_agent

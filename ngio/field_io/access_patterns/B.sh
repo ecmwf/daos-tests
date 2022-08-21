@@ -21,17 +21,20 @@ test_name=patternB
 servers="dual_server"
 simplified=( "" "--simple" "--simple-kvs" )
 osizes=("1MiB" "5MiB" "10MiB" "20MiB")
+posix_cont="false"
+dummy_daos="false"
 ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_SX OC_SX OC_S1" )
-#C=(1 2 4 8)
-C=(4)
+C=(1 2 4 8)
 REP=10
 WR=2000
 sleep=0
 source pool_helpers.sh
 for s in "${simplified[@]}" ; do
+dummy_daos_arg=
 tname=${test_name}
-[[ "$s" == "--simple" ]] && tname=${test_name}_simple
-[[ "$s" == "--simple-kvs" ]] && tname=${test_name}_simple_kvs
+[[ "$dummy_daos" == "true" ]] && tname=${tname}_dummy && dummy_daos_arg="--dummy"
+[[ "$s" == "--simple" ]] && tname=${tname}_simple
+[[ "$s" == "--simple-kvs" ]] && tname=${tname}_simple_kvs
 [ $sleep -gt 0 ] && tname=${tname}_sleep
 [ $sleep -gt 1 ] && tname=${tname}${sleep}
 for osize in "${osizes[@]}" ; do
@@ -56,7 +59,7 @@ for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
     echo "### Pattern B $s, ${ocvec[@]}, ${osize}, C=$c, N=$n, rep=$r ###"
 
-    out=$(create_pool_cont)
+    out=$(create_pool_cont $posix_cont $dummy_daos $servers)
     code=$?
     [ $code -ne 0 ] && echo "create_pool_cont failed" && return
     pool_id=$(echo "$out" | grep "POOL: " | awk '{print $2}')
@@ -67,7 +70,7 @@ for r in `seq 1 $REP` ; do
     out=$(./field_io/submitter.sh $c2 test_field_io -PRV tcp $s --osize ${osize} \
             --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
             $n $WR 0 -P $pool_id -C $cont_id --unique --n-to-write $WR \
-            --sleep $sleep --span-length 5 --hold)
+            --sleep $sleep --span-length 5 --hold $dummy_daos_arg)
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done
@@ -78,20 +81,20 @@ for r in `seq 1 $REP` ; do
     out=$(./field_io/submitter.sh $c2 test_field_io -PRV tcp $s --osize ${osize} \
             --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
             $n $WR 0 -P $pool_id -C $cont_id --unique --n-to-write $WR \
-            --sleep $sleep --span-length 5 --hold)
+            --sleep $sleep --span-length 5 --hold $dummy_daos_arg)
     echo "$out"
     jid1=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     out=$(./field_io/submitter.sh $c2 test_field_io -PRV tcp $s --osize ${osize} \
             --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
             $n 0 $WR -P $pool_id -C $cont_id --unique --n-to-read $WR \
-            --sleep $sleep --span-length 5 --hold)
+            --sleep $sleep --span-length 5 --hold $dummy_daos_arg)
     echo "$out"
     jid2=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *${jid1} .* $USER " -e "^ *${jid2} .* $USER " ; do
         sleep 5 && echo "Sleeping..."
     done
 
-    out=$(destroy_pool_cont)
+    out=$(destroy_pool_cont $dummy_daos)
     code=$?
     [ $code -ne 0 ] && echo "destroy_pool_cont failed for N=$n" && return
 done

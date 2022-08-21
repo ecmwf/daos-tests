@@ -49,6 +49,6 @@ ecbuild_add_library(
 		$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/daos_field_io>
 		$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/daos_field_io>
 
-	PRIVATE_LIBS daos gurt daos_common
+	PRIVATE_LIBS ${FIELD_IO_LIBRARIES}
 
 )

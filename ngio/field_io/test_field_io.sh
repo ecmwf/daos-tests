@@ -31,6 +31,7 @@ S=0
 L=0
 H=0
 I=0
+num_nodes=0
 n_to_write=0
 n_to_read=0
 osize=1MiB
@@ -66,6 +67,8 @@ right after having established a connection with the DAOS pool. \
 x is the amount of time each particular client c (from 1 to N) has waited \
 before being spawned:\n\
    x = (c - 1) % N\n\n\
+--num-nodes <n>\n\nn is the number of client nodse simultaneously running this script \
+(used to generate uuids if --unique is set).\n0 by default\n\n\
 -I|--node-id <i>\n\ni is an id used to represent the client node this script is \
 running on (used to generate uuids if --unique is set).\n0 by default\n\n\
 -P|--pool <uuid>\n\nUUID of a DAOS pool to use. If not porivded, one will be created and \
@@ -106,6 +109,11 @@ comparison check\n\n\
     ;;
     -H|--hold)
     H=1
+    shift
+    ;;
+    --num-nodes)
+    num_nodes="$2"
+    shift
     shift
     ;;
     -I|--node-id)
@@ -220,11 +228,15 @@ fi
 
 cd $tmp_dir
 cp $test_src_dir/src/field_io/share/daos_field_io/testdata .
+cmp_n=$(stat -c%s testdata)
 
 # Run the clients
 
+# real MARS/FDB syntax uses '/' in step and grid, instead of '-' used here. This is
+# because if using the filesystem-backed dummy DAOS, where objects are mapped
+# to files, slashes are not supported in object (file) names.
 index_key='{"class":"od","date":"20200306"}'
-store_key='{"stream":"oper","levtype":"sfc","param":"10u","step":"0/12","time":"00","type":"fc","expver":"0001","grid":"0.5/0.5"}'
+store_key='{"stream":"oper","levtype":"sfc","param":"10u","step":"0-12","time":"00","type":"fc","expver":"0001","grid":"0.5-0.5"}'
 
 n_chips=$(cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l)
 n_cores=$(cat /proc/cpuinfo | grep "core id" | sort -u | wc -l)
@@ -275,11 +287,19 @@ function client {
 		hold=0
 	fi
 
+    # The following index_key modification is used to force each client node to read data 
+    # written by another node, to avoid hitting local caches, if any, with data written
+    # previously by the node running this script.
+    # If willing to read same data as written and possibly hit local cache, the first line
+    # has to be replaced by I2=$I.
+    #I2=$I
+    [ $num_nodes -ne 0 ] && I2=$(( (I + 1) % $num_nodes )) || I2=$I
+	client_index_key=$(echo "$index_key" | sed -e "s/\"}/,\"index\":\"${I2},$i\"}/")
 	if [ $R -gt 0 ] ; then
 		r_bin=$(which daos_field_read)
 		out=$($s taskset -c $pin_proc $r_bin $pool_id $cont_id \
 			"${client_index_key}" "${store_key}" \
-			testdata_$i $R $U $n_to_read $hold $S $I $i $all_to_files 2>&1)
+			testdata_$i $R $U $n_to_read $hold $S ${I2} $i $all_to_files 2>&1)
 		[ $? != 0 ] && failed=1 && which_failed="${which_failed}${sep}read" \
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp") && prof_sep="\n"
@@ -289,7 +309,7 @@ function client {
 			if [ $all_to_files -eq 1 ] ; then
 				outs=($(ls testdata_$i_*))
 				for of in "${outs[@]}" ; do
-					$s cmp testdata $of
+					$s cmp testdata $of -n $cmp_n
 					[ $? != 0 ] && failed=1 \
 					&& which_failed="${which_failed}${sep}read iter cmp" \
 					&& sep="; " \
@@ -297,7 +317,7 @@ function client {
 					&& log_sep="\n"
 				done
 			else
-				$s cmp testdata testdata_$i
+				$s cmp testdata testdata_$i -n $cmp_n
 				[ $? != 0 ] && failed=1 \
 				&& which_failed="${which_failed}${sep}read final cmp" \
 				&& sep="; " \
@@ -316,6 +336,8 @@ function client {
 	echo -e "Node $I client $i succeeded\n${prof}"
 	echo "Profiling node $I client $i - total wc time: $client_wc_time"
 }
+
+module load cmake
 
 end=`date +%s`
 
@@ -337,7 +359,7 @@ if [ $U -eq 0 ] ; then
 	[ $? != 0 ] && failed=1 && echo "Final read failed"
 
 	if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
-		$s cmp testdata testdata_final
+		$s cmp testdata testdata_final -n $cmp_n
 		[ $? != 0 ] && failed=1 && echo "Final cmp failed"
 	fi
 

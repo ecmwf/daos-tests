@@ -19,6 +19,43 @@
 function create_pool_cont {
 
 posix_pool=$1
+dummy_daos=$2
+servers=$3
+
+if [[ "$dummy_daos" == "true" ]] ; then
+
+    pool_param="--pool newlust."
+    [[ "$servers" == "single_server" ]] && pool_param+="1node"
+    [[ "$servers" == "dual_server" ]] && pool_param+="2nodes"
+    [[ "$servers" == "quad_server" ]] && pool_param+="4nodes"
+    [[ "$servers" == "hexa_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "octa_server" ]] && pool_param=
+    [[ "$servers" == "ten_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "twelve_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "fourteen_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "sixteen_server" ]] && echo "Not implemented" && return 1
+
+    test_dir=/newlust/test_field_io_tmp
+
+    mkdir -p ${test_dir}
+    lfs setstripe -c -1 ${pool_param} ${test_dir}
+
+    DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
+
+    rand1=$(od -An -N3 -i /dev/random)
+    rand2=$(od -An -N3 -i /dev/random)
+    rand1=$(printf "%08d" $rand1)
+    rand2=$(printf "%012d" $rand2)
+    pool_id="${rand1}-0000-0000-0000-${rand2}"
+    cont_id="00000000-0000-0000-0000-000000000001"
+    
+    mkdir -p ${DUMMY_DAOS_DATA_ROOT}/${pool_id}/${cont_id}
+    code=$?
+
+    echo "POOL: $pool_id"
+    echo "CONT: $cont_id"
+
+else
 
 cont_create_args=
 [[ "$posix_pool" == "true" ]] && cont_create_args="--type=POSIX"
@@ -98,11 +135,25 @@ code=$?
 
 rm cpool.sh
 
+fi
+
 return $code
 
 }
 
 function destroy_pool_cont {
+
+dummy_daos=$1
+
+if [[ "$dummy_daos" == "true" ]] ; then
+
+    test_dir=/newlust/test_field_io_tmp
+    DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
+    find ${DUMMY_DAOS_DATA_ROOT} -maxdepth 2 -mindepth 2 -print0 | xargs -0 -P 48 rm -rf
+    rm -rf ${test_dir}
+    code=$?
+
+else
 
 cat > dpool.sh <<'EOF'
 
@@ -170,6 +221,8 @@ ssh nextgenio-cn28 '/bin/env bash -s' < dpool.sh
 code=$?
 
 rm dpool.sh
+
+fi
 
 return $code
 

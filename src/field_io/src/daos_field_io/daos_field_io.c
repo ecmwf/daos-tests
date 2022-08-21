@@ -32,6 +32,8 @@
 #include "daos_field_io_version.h"
 #include "daos_field_io_config.h"
 
+#include <uuid/uuid.h>
+
 #define UUIDLEN 16
 #ifdef daos_field_io_HAVE_SIMPLIFIED
 // objid(16) + struct_timeval(16)
@@ -48,6 +50,8 @@
 #define BUFSIZE 10
 #define BLKSIZE 1048576
 #define OIDS_PER_ALLOC 1024
+
+//void uuid_generate_md5(uuid_t out, const uuid_t ns, const char *name, size_t len);
 
 char * oc_main_kv_str = DAOS_FIELD_IO_OC_MAIN_KV;
 char * oc_index_kv_str = DAOS_FIELD_IO_OC_INDEX_KV;

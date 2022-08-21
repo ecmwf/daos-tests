@@ -25,6 +25,9 @@ project( daos_field_io LANGUAGES C )
 #set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 ecbuild_add_option( FEATURE PROFILING
 		    DEFAULT OFF
 		    DESCRIPTION "Profile each DAOS API call" )
@@ -37,14 +40,27 @@ ecbuild_add_option( FEATURE SIMPLIFIED_KVS
 		    DEFAULT OFF
 		    DESCRIPTION "Use simplified version of field IO functions without container layers (with indexing and using a single container for all kvs and arrays)" )
 
+ecbuild_add_option( FEATURE DUMMY_DAOS
+		    DEFAULT OFF
+		    DESCRIPTION "Use dummy DAOS library emulating DAOS with a file system" )
+
 set( DAOS_FIELD_IO_OC_MAIN_KV "OC_SX" CACHE STRING "main kv object class" )
 set( DAOS_FIELD_IO_OC_INDEX_KV "OC_S2" CACHE STRING "index kv object class" )
 set( DAOS_FIELD_IO_OC_STORE_ARRAY "OC_S1" CACHE STRING "store array object class" )
 
 include(cmake/compiler_warnings.cmake) # optionally handle compiler specific warnings
 
-find_package(DAOS)
 find_package(UUID)
+
+if(HAVE_DUMMY_DAOS)
+	find_package(DUMMY_DAOS)
+	set(FIELD_IO_LIBRARIES stdc++ eckit daos)
+else()
+	find_package(DAOS)
+	set(FIELD_IO_LIBRARIES daos gurt daos_common)
+endif()
+
+list(APPEND FIELD_IO_LIBRARIES uuid)
 
 add_subdirectory( src )
 add_subdirectory( share )

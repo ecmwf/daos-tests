@@ -34,6 +34,11 @@ tname=${test_name}
 [ $sleep -gt 0 ] && tname=${tname}_sleep
 [ $sleep -gt 1 ] && tname=${tname}${sleep}
 for api in "${apis[@]}" ; do
+posix_cont=false
+[[ "$api" == "DFS" ]] && posix_cont=true
+[[ "$api" == "MPIIO" ]] && posix_cont=true
+create_directory=false
+[[ "$api" == "POSIX" ]] && create_directory=true
 for osize in "${osizes[@]}" ; do
 for oc in "${ocs[@]}" ; do
 ocname=$oc
@@ -53,10 +58,7 @@ for r in `seq 1 $REP` ; do
 
     echo "### IOR Pattern A ${rep_mode}, ${oc}, ${osize}, API=$api, C=$c, N=$n, rep=$r ###"
 
-    posix_cont=
-    [[ "$api" == "DFS" ]] && posix_cont=true
-    [[ "$api" == "MPIIO" ]] && posix_cont=true
-    out=$(create_pool_cont $posix_cont)
+    out=$(create_pool_cont $posix_cont $create_directory $servers)
     code=$?
     [ $code -ne 0 ] && echo "create_pool_cont failed" && return
     pool_id=$(echo "$out" | grep "POOL: " | awk '{print $2}')
@@ -75,7 +77,7 @@ for r in `seq 1 $REP` ; do
         jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done
 
-    out=$(destroy_pool_cont)
+    out=$(destroy_pool_cont $create_directory)
     code=$?
     [ $code -ne 0 ] && echo "destroy_pool_cont failed for N=$n" && return
 
