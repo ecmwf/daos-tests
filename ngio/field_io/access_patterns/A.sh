@@ -20,10 +20,10 @@ cd $HOME/daos-tests/ngio
 test_name=patternA
 servers="dual_server"
 simplified=( "" "--simple" "--simple-kvs" )
-osizes=("1MiB" "5MiB" "10MiB" "20MiB")
+osizes=("1MiB" "5MiB" "10MiB" "20MiB" "50MiB")
 posix_cont="false"
 dummy_daos="false"
-ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_SX OC_SX OC_S1" )
+ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_S1 OC_S1 OC_SX" "OC_SX OC_SX OC_S1" )
 #C=(1 2 4 8)
 C=(4)
 REP=10
@@ -65,17 +65,19 @@ for r in `seq 1 $REP` ; do
     echo "Pool is: $pool_id"
     echo "Cont is: $cont_id"
 
+    io_start_barrier=$(( $(date +%s) + 10 ))
     out=$(./field_io/submitter.sh $c test_field_io -PRV tcp $s --osize ${osize} \
         --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
         $n $WR 0 -P $pool_id -C $cont_id --unique --n-to-write $WR \
-        --sleep $sleep --span-length 20 --hold $dummy_daos_arg)
+        --sleep $sleep --span-length 20 --hold -B $io_start_barrier $dummy_daos_arg)
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done
+    io_start_barrier=$(( $(date +%s) + 10 ))
     out=$(./field_io/submitter.sh $c test_field_io -PRV tcp $s --osize ${osize} \
         --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
         $n 0 $WR -P $pool_id -C $cont_id --unique --n-to-read $WR \
-        --sleep $sleep --span-length 20 --hold $dummy_daos_arg)
+        --sleep $sleep --span-length 20 --hold -B $io_start_barrier $dummy_daos_arg)
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done

@@ -1,5 +1,6 @@
 access_points: ['nextgenio-cn28']
 port: 10001
+#telemetry_port: 9191
 transport_config:
   allow_insecure: true
   client_cert_dir: /etc/daos/certs/clients
