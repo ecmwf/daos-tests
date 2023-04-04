@@ -38,4 +38,4 @@ export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
 module load libfabric/latest
 export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
 
-dmg storage format --reformat -i -o /tmp/daos-tests/ngio/config/daos_control.yaml
+dmg storage format --force -i -o /tmp/daos-tests/ngio/config/daos_control.yaml

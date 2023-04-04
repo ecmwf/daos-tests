@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 	int rc = 0, size_factor, nrep, unique, n_to_write, hold, zzz, node_id, client_id, i;
 	char* index_key, * store_key, * data_path;
 	ssize_t r;
-	uuid_t pool_uuid, co_uuid;
+	char* pool_uuid, * co_uuid;
 
 	struct timeval tval_before, tval_after, tval_result;
 
@@ -96,11 +96,13 @@ int main(int argc, char** argv) {
 	rc = gethostname(node, sizeof(node));
 	ASSERT(rc == 0, "buffer for hostname too small");
 
-	rc = uuid_parse(argv[1], pool_uuid);
-	ASSERT(rc == 0, "Failed to parse 'Pool uuid': %s", argv[1]);
+	//rc = uuid_parse(argv[1], pool_uuid);
+	//ASSERT(rc == 0, "Failed to parse 'Pool uuid': %s", argv[1]);
+	pool_uuid = argv[1];
 
-	rc = uuid_parse(argv[2], co_uuid);
-	ASSERT(rc == 0, "Failed to parse 'Container uuid': %s", argv[2]);
+	//rc = uuid_parse(argv[2], co_uuid);
+	//ASSERT(rc == 0, "Failed to parse 'Container uuid': %s", argv[2]);
+	co_uuid = argv[2];
 
 	index_key = argv[3];
 

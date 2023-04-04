@@ -108,6 +108,27 @@ void cc_fini() {
 
 }
 
+// daos v2.2.0 does not support cont_open via uuid_t, only via const char *
+int daos_cont_open_by_uuid(daos_handle_t poh, uuid_t co_uuid, unsigned int flags, daos_handle_t * coh, daos_cont_info_t * info, daos_event_t * ev) {
+
+	char uuid_str[43] = "label_";
+	uuid_unparse(co_uuid, uuid_str + 6);	
+	return daos_cont_open(poh, uuid_str, flags, coh, info, ev);
+
+}
+
+// daos v2.2.0 does not support cont_create via uuid_t, only via const char *
+// warning, daos will internally assign a uuid to the container which is different to the uuid provided as 
+// argument to this function. The provided uuid is converted to string and used as container label.
+// warning, labels with uuid format are not accepted by daos, so the prefix "label_" is added here
+int daos_cont_create_by_uuid(daos_handle_t poh, uuid_t co_uuid, daos_prop_t * cont_prop, daos_event_t * ev) {
+
+	char uuid_str[43] = "label_";
+	uuid_unparse(co_uuid, uuid_str + 6);
+	return daos_cont_create_with_label(poh, uuid_str, cont_prop, NULL, ev);
+
+}
+
 int daos_cont_open_cache(daos_handle_t poh, uuid_t co_uuid, unsigned int mode, daos_handle_t * coh) {
 
 	struct coh_cache * cc_visit = cc;
@@ -132,7 +153,7 @@ int daos_cont_open_cache(daos_handle_t poh, uuid_t co_uuid, unsigned int mode, d
 
 	}
 
-	rc = daos_cont_open(poh, co_uuid, mode, coh, NULL, NULL);
+	rc = daos_cont_open_by_uuid(poh, co_uuid, mode, coh, NULL, NULL);
 
 	if (rc == 0) {
 
@@ -636,9 +657,6 @@ exit:
 	int rc;
 	ssize_t res = (ssize_t) -1;
 
-	char index_co_uuid_str[37];
-	char store_co_uuid_str[37];
-
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
@@ -711,7 +729,7 @@ exit:
 		 */
 
 		p_s(&tval_before);
-		rc = daos_cont_create(poh, index_co_uuid, NULL, NULL);
+		rc = daos_cont_create_by_uuid(poh, index_co_uuid, NULL, NULL);
 		p_e("write", "daos_cont_create", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
@@ -774,7 +792,7 @@ exit:
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, index_co_uuid, DAOS_COO_RW, &index_coh);
 	} else {
-		rc = daos_cont_open(poh, index_co_uuid, DAOS_COO_RW, &index_coh, NULL, NULL);
+		rc = daos_cont_open_by_uuid(poh, index_co_uuid, DAOS_COO_RW, &index_coh, NULL, NULL);
 	}
 	p_e("write", "daos_cont_open", &tval_before, &tval_after, &tval_result);
 
@@ -821,7 +839,7 @@ exit:
 		 */
 
 		p_s(&tval_before);
-		rc = daos_cont_create(poh, store_co_uuid, NULL, NULL);
+		rc = daos_cont_create_by_uuid(poh, store_co_uuid, NULL, NULL);
 		p_e("write", "daos_cont_create_2", &tval_before, &tval_after, &tval_result);
 
 		if (rc != 0) {
@@ -882,7 +900,7 @@ exit:
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, store_co_uuid, DAOS_COO_RW, &store_coh);
 	} else {
-		rc = daos_cont_open(poh, store_co_uuid, DAOS_COO_RW, &store_coh, NULL, NULL);
+		rc = daos_cont_open_by_uuid(poh, store_co_uuid, DAOS_COO_RW, &store_coh, NULL, NULL);
 	}
 	p_e("write", "daos_cont_open_2", &tval_before, &tval_after, &tval_result);
 
@@ -897,7 +915,6 @@ exit:
 
 	struct timeval tval_before_aopen, tval_after_aclose, tval_result_aopenclose;
 
-	uuid_unparse(store_co_uuid, store_co_uuid_str);	
 	p_s(&tval_before);
 	rc = get_oid(store_coh, &oid_array);
 	p_e("write", "get_oid", &tval_before, &tval_after, &tval_result);
@@ -1376,9 +1393,6 @@ exit:
 	int rc;
 	ssize_t res = (ssize_t) -1;
 
-	char index_co_uuid_str[37];
-	char store_co_uuid_str[37];
-
 	// profiling
 	struct timeval tval_before, tval_after, tval_result;
 
@@ -1451,7 +1465,7 @@ exit:
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, index_co_uuid, DAOS_COO_RW, &index_coh);
 	} else {
-		rc = daos_cont_open(poh, index_co_uuid, DAOS_COO_RW, &index_coh, NULL, NULL);
+		rc = daos_cont_open_by_uuid(poh, index_co_uuid, DAOS_COO_RW, &index_coh, NULL, NULL);
 	}
 	p_e("read", "daos_cont_open", &tval_before, &tval_after, &tval_result);
 
@@ -1523,7 +1537,7 @@ exit:
 	if (cc_use) {
 		rc = daos_cont_open_cache(poh, store_co_uuid, DAOS_COO_RW, &store_coh);
 	} else {
-		rc = daos_cont_open(poh, store_co_uuid, DAOS_COO_RW, &store_coh, NULL, NULL);
+		rc = daos_cont_open_by_uuid(poh, store_co_uuid, DAOS_COO_RW, &store_coh, NULL, NULL);
 	}
 	p_e("read", "daos_cont_open_2", &tval_before, &tval_after, &tval_result);
 
