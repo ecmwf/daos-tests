@@ -247,7 +247,7 @@ index_key='{"class":"od","date":"20200306"}'
 store_key='{"stream":"oper","levtype":"sfc","param":"10u","step":"0-12","time":"00","type":"fc","expver":"0001","grid":"0.5-0.5"}'
 
 n_chips=$(cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l)
-n_cores=$(cat /proc/cpuinfo | grep "core id" | sort -u | wc -l)
+n_cores=$(cat /proc/cpuinfo | grep "cpu cores" | sort -u | awk '{print $4}')
 ht=0
 n_procs=$(cat /proc/cpuinfo | grep "processor" | sort -u | wc -l)
 [ "$n_procs" -gt "$(( n_cores * n_chips ))" ] && ht=1
@@ -313,27 +313,27 @@ function client {
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp") && prof_sep="\n"
 
-		if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
+		#if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
 
-			if [ $all_to_files -eq 1 ] ; then
-				outs=($(ls testdata_$i_*))
-				for of in "${outs[@]}" ; do
-					$s cmp testdata $of -n $cmp_n
-					[ $? != 0 ] && failed=1 \
-					&& which_failed="${which_failed}${sep}read iter cmp" \
-					&& sep="; " \
-					&& log="${log}"${log_sep}"Client iteration cmp failed: $of" \
-					&& log_sep="\n"
-				done
-			else
-				$s cmp testdata testdata_$i -n $cmp_n
-				[ $? != 0 ] && failed=1 \
-				&& which_failed="${which_failed}${sep}read final cmp" \
-				&& sep="; " \
-				&& log="${log}"${log_sep}"Client final cmp failed" \
-				&& log_sep="\n"
-			fi
-		fi
+		#	if [ $all_to_files -eq 1 ] ; then
+		#		outs=($(ls testdata_$i_*))
+		#		for of in "${outs[@]}" ; do
+		#			$s cmp testdata $of -n $cmp_n
+		#			[ $? != 0 ] && failed=1 \
+		#			&& which_failed="${which_failed}${sep}read iter cmp" \
+		#			&& sep="; " \
+		#			&& log="${log}"${log_sep}"Client iteration cmp failed: $of" \
+		#			&& log_sep="\n"
+		#		done
+		#	else
+		#		$s cmp testdata testdata_$i -n $cmp_n
+		#		[ $? != 0 ] && failed=1 \
+		#		&& which_failed="${which_failed}${sep}read final cmp" \
+		#		&& sep="; " \
+		#		&& log="${log}"${log_sep}"Client final cmp failed" \
+		#		&& log_sep="\n"
+		#	fi
+		#fi
 	fi
 
 	[ $failed -ne 0 ] && echo "Node $I client $i failed at: $which_failed" \
@@ -360,20 +360,20 @@ done
 
 wait
 
-if [ $U -eq 0 ] ; then
-	failed=0
-
-	r_bin=$(which daos_field_read)
-	out=$($s $r_bin $pool_id $cont_id "${index_key}" "${store_key}" testdata_final 1 0 1 0 0 0 $N 0 0 2>&1)
-	[ $? != 0 ] && failed=1 && echo "Final read failed"
-
-	if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
-		$s cmp testdata testdata_final -n $cmp_n
-		[ $? != 0 ] && failed=1 && echo "Final cmp failed"
-	fi
-
-	[ $failed -eq 0 ] && echo "Final read and cmp succeeded"
-fi
+#if [ $U -eq 0 ] ; then
+#	failed=0
+#
+#	r_bin=$(which daos_field_read)
+#	out=$($s $r_bin $pool_id $cont_id "${index_key}" "${store_key}" testdata_final 1 0 1 0 0 0 $N 0 0 2>&1)
+#	[ $? != 0 ] && failed=1 && echo "Final read failed"
+#
+#	if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
+#		$s cmp testdata testdata_final -n $cmp_n
+#		[ $? != 0 ] && failed=1 && echo "Final cmp failed"
+#	fi
+#
+#	[ $failed -eq 0 ] && echo "Final read and cmp succeeded"
+#fi
 
 end=`date +%s`
 

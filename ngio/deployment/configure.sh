@@ -17,21 +17,21 @@
 # does it submit to any jurisdiction.
 
 # 1
-#cns=("nextgenio-cn28")
+#cns=("nextgenio-cn01")
 # 2
-cns=("nextgenio-cn28" "nextgenio-cn29")
+#cns=("nextgenio-cn01" "nextgenio-cn02")
 # 4
-#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21")
+#cns=("nextgenio-cn01" "nextgenio-cn02" "nextgenio-cn03" "nextgenio-cn04")
 # 8
-#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25")
+#cns=("nextgenio-cn01" "nextgenio-cn02" "nextgenio-cn03" "nextgenio-cn04" "nextgenio-cn05" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08")
 # 10
-#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27")
+cns=("nextgenio-cn01" "nextgenio-cn02" "nextgenio-cn03" "nextgenio-cn04" "nextgenio-cn05" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09" "nextgenio-cn10")
 # 12
-#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27" "nextgenio-cn06" "nextgenio-cn07")
+#cns=("nextgenio-cn01" "nextgenio-cn02" "nextgenio-cn03" "nextgenio-cn04" "nextgenio-cn05" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09" "nextgenio-cn10" "nextgenio-cn11" "nextgenio-cn12")
 # 14
-#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09")
+#cns=("nextgenio-cn01" "nextgenio-cn02" "nextgenio-cn03" "nextgenio-cn04" "nextgenio-cn05" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09" "nextgenio-cn10" "nextgenio-cn11" "nextgenio-cn12" "nextgenio-cn13" "nextgenio-cn14")
 # 16
-#cns=("nextgenio-cn28" "nextgenio-cn29" "nextgenio-cn20" "nextgenio-cn21" "nextgenio-cn22" "nextgenio-cn23" "nextgenio-cn24" "nextgenio-cn25" "nextgenio-cn26" "nextgenio-cn27" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09" "nextgenio-cn31" "nextgenio-cn32")
+#cns=("nextgenio-cn01" "nextgenio-cn02" "nextgenio-cn03" "nextgenio-cn04" "nextgenio-cn05" "nextgenio-cn06" "nextgenio-cn07" "nextgenio-cn08" "nextgenio-cn09" "nextgenio-cn10" "nextgenio-cn11" "nextgenio-cn12" "nextgenio-cn13" "nextgenio-cn14" "nextgenio-cn15" "nextgenio-cn16")
 cd
 for cn in "${cns[@]}" ; do
     ssh -t $cn 'mkdir -p /tmp/daos-tests'

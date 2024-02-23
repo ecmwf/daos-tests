@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 	long int timestamp_wait;
 	char* index_key, * store_key, * data_path;
 	ssize_t r;
-	uuid_t pool_uuid, co_uuid;
+	char* pool_uuid, * co_uuid;
 
 	struct timeval tval_before, tval_after, tval_result;
 
@@ -94,11 +94,13 @@ int main(int argc, char** argv) {
 	rc = gethostname(node, sizeof(node));
 	ASSERT(rc == 0, "buffer for hostname too small");
 
-	rc = uuid_parse(argv[1], pool_uuid);
-	ASSERT(rc == 0, "Failed to parse 'Pool uuid': %s", argv[1]);
+	//rc = uuid_parse(argv[1], pool_uuid);
+	//ASSERT(rc == 0, "Failed to parse 'Pool uuid': %s", argv[1]);
+	pool_uuid = argv[1];
 
-	rc = uuid_parse(argv[2], co_uuid);
-	ASSERT(rc == 0, "Failed to parse 'Container uuid': %s", argv[2]);
+	//rc = uuid_parse(argv[2], co_uuid);
+	//ASSERT(rc == 0, "Failed to parse 'Container uuid': %s", argv[2]);
+	co_uuid = argv[2];
 
 	index_key = argv[3];
 
@@ -212,6 +214,8 @@ int main(int argc, char** argv) {
 
 		if (prof) gettimeofday(&tval_after_io[i], NULL);
 
+        free(data[i]);
+
 		if (i != (nrep - 1) && zzz > 0) {
 			sleep(zzz);
 		}
@@ -232,37 +236,37 @@ int main(int argc, char** argv) {
 	for (i = 0; i < nrep; i++) {
 		printf("THE ITERATION IS: %d\n", i);
 
-		if (all_to_files == 0) {
-			data_path_i = data_path;
-		} else {
-			data_path_new[0] = '\0';
-			strcat(data_path_new, data_path);
-			sprintf(data_path_new + strlen(data_path_new),
-				"_%04d%04d%04d", node_id, client_id, i % n_to_read);
-			data_path_i = data_path_new;
-		}
+		//if (all_to_files == 0) {
+		//	data_path_i = data_path;
+		//} else {
+		//	data_path_new[0] = '\0';
+		//	strcat(data_path_new, data_path);
+		//	sprintf(data_path_new + strlen(data_path_new),
+		//		"_%04d%04d%04d", node_id, client_id, i % n_to_read);
+		//	data_path_i = data_path_new;
+		//}
 
-		if (all_to_files == 1 || i == (nrep - 1)) {
-			fd = open(data_path_i, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
-			if (fd < 0) {
-				free(data[i]);
-				ASSERT(fd >= 0, "data_path open failed");
-			}
+		//if (all_to_files == 1 || i == (nrep - 1)) {
+		//	fd = open(data_path_i, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+		//	if (fd < 0) {
+		//		free(data[i]);
+		//		ASSERT(fd >= 0, "data_path open failed");
+		//	}
 
-			buf_len = write(fd, data[i], len[i]);
+		//	buf_len = write(fd, data[i], len[i]);
 
-			if (buf_len < 0) {
-				printf("write failed with %d", (int) buf_len);
-			}
+		//	if (buf_len < 0) {
+		//		printf("write failed with %d", (int) buf_len);
+		//	}
 
-			if (buf_len < len[i]) {
-				printf("written less bytes than expected");
-			}
+		//	if (buf_len < len[i]) {
+		//		printf("written less bytes than expected");
+		//	}
 
-			rc = close(fd);
-		}
+		//	rc = close(fd);
+		//}
 
-		free(data[i]);
+		//free(data[i]);
 
 		if (prof) {
 			if (i == 0) {

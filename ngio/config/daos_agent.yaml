@@ -1,4 +1,4 @@
-access_points: ['nextgenio-cn28']
+access_points: ['nextgenio-cn01']
 port: 10001
 transport_config:
   allow_insecure: true
@@ -7,3 +7,4 @@ transport_config:
   key: /etc/daos/certs/agent.key
 runtime_dir: /tmp/daos/run/daos_agent
 log_file: /tmp/daos/log/daos_agent.log
+control_log_mask: ERROR

@@ -45,18 +45,17 @@ mpi_params="-envall"
 ior_params=
 with_mpiio=
 
+module load mpich/3.4.2
+#module load packages-oneapi
+#module load compiler
+#module load gnu/11.2.0
+
 if [[ "$ior_api" == "DAOS" ]] || [[ "$ior_api" == "DFS" ]] ; then
-	module load mpich
-	module load packages-oneapi
-	module load compiler
 	[[ "$ior_api" == "DAOS" ]] && \
 		ior_params="-o file_name --daos.pool $pool --daos.cont $cont --daos.oclass $oc"
 	[[ "$ior_api" == "DFS" ]] && \
 		ior_params="-o /file_name --dfs.pool $pool --dfs.cont $cont --dfs.oclass $oc --dfs.dir_oclass $oc"
 elif [[ "$ior_api" == "MPIIO" ]] ; then
-	module load mpich
-	module load packages-oneapi
-	module load compiler
 	ior_params="-o daos://file_name"
 	with_mpiio="--with-mpiio=yes"
 	export DAOS_POOL=$pool
@@ -65,9 +64,6 @@ elif [[ "$ior_api" == "MPIIO" ]] ; then
 	export DAOS_BYPASS_DUNS=1
 	export I_MPI_OFI_LIBRARY_INTERNAL=0
 elif [[ "$ior_api" == "POSIX" ]] ; then
-	module load mpich
-	module load packages-oneapi
-	module load compiler
 	ior_params="-o /newlust/test_field_io_tmp/tmp_dir_fdb5_dummy_daos/${pool}/${cont}/file_name"
 else
 	echo "Unsupported IOR API" && exit 1
@@ -96,6 +92,19 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 		# these modifications are intended for IOR 3.3.0rc1 and 3.3.0 to work with DAOS 2.0
 		grep -r -l "daos_array_generate_id" * | xargs sed -i -e 's/daos_array_generate_id(.*/daos_array_generate_oid(coh, oid, true, objectClass, 0, 0);/g'
 	
+		# these modifications are intended for IOR 3.3.0rc1 and 3.3.0 to work with DAOS 2.3.108-tb
+		# for DAOS API:
+		grep -r -l "daos_cont_open" * | xargs sed -i -e 's/daos_cont_open(poh, uuid/daos_cont_open(poh, o.cont/g'
+		grep -r -l "daos_cont_create" * | xargs sed -i -e 's/daos_cont_create(poh, uuid, NULL/daos_cont_create_with_label(poh, o.cont, NULL, &uuid/g'
+		grep -r -l "daos_pool_connect" * | xargs sed -i -e 's/daos_pool_connect(uuid/daos_pool_connect(o.pool/g'
+		# for DFS API:
+		grep -r -l "dfs_init;" * | xargs sed -i -e 's/dfs_init;/dfs_init_flag;/g'
+		grep -r -l "dfs_init)" * | xargs sed -i -e 's/dfs_init)/dfs_init_flag)/g'
+		grep -r -l "dfs_init " * | xargs sed -i -e 's/dfs_init /dfs_init_flag /g'
+		grep -r -l "daos_cont_open" * | xargs sed -i -e 's/daos_cont_open(poh, co_uuid/daos_cont_open(poh, o.cont/g'
+		grep -r -l "dfs_cont_create" * | xargs sed -i -e 's/dfs_cont_create(poh, co_uuid, NULL/dfs_cont_create_with_label(poh, o.cont, NULL, &co_uuid/g'
+		grep -r -l "daos_pool_connect" * | xargs sed -i -e 's/daos_pool_connect(pool_uuid/daos_pool_connect(o.pool/g'
+
 		make distclean
 		./bootstrap
 		./configure $with_mpiio --with-cart=/usr --with-daos=/usr --prefix=$ior_build_dir
@@ -128,11 +137,6 @@ else
 	echo "Unsupported fabric provider $fabric_provider"
 	exit 1
 fi
-
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
-
-module load libfabric/latest
-export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
 
 export D_LOG_MASK=
 export DD_SUBSYST=all
@@ -226,4 +230,4 @@ else
 
 fi
 
-[[ "$ior_api" == "POSIX" ]] && pkill daos_agent
+[[ "$ior_api" != "POSIX" ]] && pkill daos_agent
