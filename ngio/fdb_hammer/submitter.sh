@@ -18,11 +18,13 @@
 
 #!/bin/env bash
 
-# USAGE: ./field_io/submitter.sh <N_CLIENT_NODES> <DAOS_TEST_SCRIPT_NAME> <SCRIPT_ARGS>
+# USAGE: ./fdb_hammer/submitter.sh <N_CLIENT_NODES> <FDB_HAMMER_TEST_SCRIPT_NAME> <SCRIPT_ARGS>
 
-if [ ! -e field_io/test_wrapper.sh ] ; then
-	echo "./field_io/test_wrapper.sh not found. Please cd to daos-tests/ngio"
+if [ ! -e fdb_hammer/test_wrapper.sh ] ; then
+	echo "./fdb_hammer/test_wrapper.sh not found. Please cd to daos-tests/ngio"
 fi
+
+list=false
 
 args=("$@")
 sep=
@@ -30,30 +32,34 @@ arg_string=
 for arg in "${args[@]}" ; do
 	arg_string=${arg_string}${sep}${arg}
 	sep="_"
+    [ "$arg" == "--list" ] || [ "$arg" == "-L" ] && list=true 
 done
 
 n_nodes=$1
 shift
 
 forward_args=("$@")
+forward_args+=("--num-nodes" "$n_nodes")
+
+[[ "$list" == "true" ]] && n_nodes=1
 
 mkdir -p runs
 
-script_filename="runs/daos_$arg_string".sh
+script_filename="runs/fdb_hammer_$arg_string".sh
 
 cat > $script_filename <<EOF
 #!/bin/bash
 
-#SBATCH --job-name="daos_$arg_string"
-#SBATCH --output=runs/daos_${arg_string}.out
-#SBATCH --error=runs/daos_${arg_string}.err
+#SBATCH --job-name="fdb_hammer_$arg_string"
+#SBATCH --output=runs/fdb_hammer_${arg_string}.out
+#SBATCH --error=runs/fdb_hammer_${arg_string}.err
 
-#SBATCH --time=00:20:00
+#SBATCH --time=00:40:00
 #SBATCH --mem-per-cpu=4000
 
 #SBATCH --nvram-options=1LM:1000
 
-srun field_io/test_wrapper.sh ${forward_args[@]}
+srun fdb_hammer/test_wrapper.sh ${forward_args[@]}
 EOF
 
 #sbatch_args=( "-N${n_nodes}" "$script_filename" )

@@ -76,6 +76,7 @@ static daos_handle_t poh, coh;
 int main(int argc, char** argv) {
 
 	int rc = 0, size_factor, nrep, unique, n_to_write, hold, zzz, node_id, client_id, i;
+	long int timestamp_wait;
 	char* index_key, * store_key, * data_path;
 	ssize_t r;
 	char* pool_uuid, * co_uuid;
@@ -88,8 +89,8 @@ int main(int argc, char** argv) {
 
 	p_s(&tval_before);
 
-	if (argc != 14) {
-		fprintf(stderr, "usage: daos_write POOL_ID CONT_ID INDEX_DICT STORE_DICT DATA_PATH SIZE_FACTOR N_REP UNIQUE N_TO_WRITE HOLD SLEEP NODE_ID CLIENT_ID\n");
+	if (argc != 15) {
+		fprintf(stderr, "usage: daos_write POOL_ID CONT_ID INDEX_DICT STORE_DICT DATA_PATH SIZE_FACTOR N_REP UNIQUE N_TO_WRITE HOLD SLEEP NODE_ID CLIENT_ID TIMESTAMP_WAIT\n");
 		exit(1);
 	}
 
@@ -126,25 +127,13 @@ int main(int argc, char** argv) {
 
 	client_id = atoi(argv[13]);
 
-	rc = daos_init();
-	ASSERT(rc == 0, "daos_init failed with %d", rc);
-
-	rc = daos_pool_connect(pool_uuid, NULL, DAOS_PC_RW, &poh, NULL, NULL);
-	ASSERT(rc == 0, "pool connect failed with %d", rc);
-
-	p_e("write", "init and connect time", node_id, client_id, &tval_before, &tval_after, &tval_result);
-
-	p_s(&tval_before);
-	sleep(hold);
-	p_e("write", "hold sleep time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+	timestamp_wait = atol(argv[14]);
 
 	char store_key_new[BUFLEN], * store_key_i;
 	int fd;
 	char* data = NULL;
 	size_t data_len;
 	ssize_t buf_len;
-
-	p_s(&tval_before);
 
 	fd = open(data_path, O_RDONLY);
 	ASSERT(fd >= 0, "data_path open failed");
@@ -182,8 +171,6 @@ int main(int argc, char** argv) {
 	tval_before_aopen  = (struct timeval *) malloc(nrep * sizeof(struct timeval));
 	tval_after_aclose  = (struct timeval *) malloc(nrep * sizeof(struct timeval));
 
-	p_e("write", "preproc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
-
 	printf("THE POOL IS: %s\n", argv[1]);
 	printf("THE CONT IS: %s\n", argv[2]);
 	printf("THE INDEX_KEY IS: %s\n", argv[3]);
@@ -191,11 +178,39 @@ int main(int argc, char** argv) {
 	//printf("THE DATA TO WRITE IS: %.*s\n", (int) data_len, data);
 	printf("THE LENGTH OF THE DATA IS: %llu\n", (unsigned long long) data_len);
 
+	p_e("write", "preproc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+
+	p_s(&tval_before);
+
+	rc = daos_init();
+	ASSERT(rc == 0, "daos_init failed with %d", rc);
+
+	rc = daos_pool_connect(pool_uuid, NULL, DAOS_PC_RW, &poh, NULL, NULL);
+	ASSERT(rc == 0, "pool connect failed with %d", rc);
+
+	p_e("write", "init and connect time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+
+	p_s(&tval_before);
+	sleep(hold);
+	p_e("write", "hold sleep time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+
 	rc = daos_cont_open(poh, co_uuid, DAOS_COO_RW, &coh, NULL, NULL);
 	ASSERT(rc == 0, "container open failed with %d", rc);
 
 	cc_init();
 	oid_alloc_store_init();
+
+	p_s(&tval_before);
+
+	long int current_time() {
+		struct timeval tval;
+		gettimeofday(&tval, NULL);
+		return tval.tv_sec;
+	}
+
+	while (current_time() < timestamp_wait) sleep(1);
+
+	p_e("write", "barrier time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
 	for (i = 0; i < nrep; i++) {
 		if (prof) gettimeofday(&tval_before_rep[i], NULL);

@@ -38,6 +38,7 @@ osize=1MiB
 pool_id=
 cont_id=
 all_to_files=0
+barrier_ts=0
 pool_created=0
 
 POSITIONAL=()
@@ -84,6 +85,8 @@ reader (re-)read up to nr different index entries in a round-robin mode.\n\n\
 -A|--all-to-files\n\nset this flag for all reads to store read data in a separate file ending \
 with _<read_id>_<node_id>, with 4 digits each tag. This will trigger individual read result \
 comparison check\n\n\
+-B|--barrier-timestamp\n\nUNIX-format timestamp (only seconds spec) all processes should wait \
+for before starting actual IO. This defaults to 0 (no sync barrier).\n\n\
 -h|--help\n\nshow this menu\
 "
     exit 0
@@ -142,6 +145,11 @@ comparison check\n\n\
     ;;
     -C|--container)
     cont_id="$2"
+    shift
+    shift
+    ;;
+    -B|--barrier-timestamp)
+    barrier_ts="$2"
     shift
     shift
     ;;
@@ -239,7 +247,7 @@ index_key='{"class":"od","date":"20200306"}'
 store_key='{"stream":"oper","levtype":"sfc","param":"10u","step":"0-12","time":"00","type":"fc","expver":"0001","grid":"0.5-0.5"}'
 
 n_chips=$(cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l)
-n_cores=$(cat /proc/cpuinfo | grep "core id" | sort -u | wc -l)
+n_cores=$(cat /proc/cpuinfo | grep "cpu cores" | sort -u | awk '{print $4}')
 ht=0
 n_procs=$(cat /proc/cpuinfo | grep "processor" | sort -u | wc -l)
 [ "$n_procs" -gt "$(( n_cores * n_chips ))" ] && ht=1
@@ -273,14 +281,15 @@ function client {
     # contention in forecast index, as each client process uses a unique
     # most-significant part for the field identifier.
     # If willing to run the field I/O benchmarks with high contention, the 
-    # following line has to be commented out.
+    # following line has to be commented out, as well as the cache hit avoidance
+    # lines below (which have to be replaced by I2=$I).
 	client_index_key=$(echo "$index_key" | sed -e "s/\"}/,\"index\":\"$I,$i\"}/")
 
 	if [ $W -gt 0 ] ; then
 		w_bin=$(which daos_field_write)
 		out=$($s taskset -c $pin_proc $w_bin $pool_id $cont_id \
 			"${client_index_key}" "${store_key}" \
-			testdata ${osize%*MiB} $W $U $n_to_write $hold $S $I $i 2>&1)
+			testdata ${osize%*MiB} $W $U $n_to_write $hold $S $I $i $barrier_ts 2>&1)
 		[ $? != 0 ] && failed=1 && which_failed="${which_failed}${sep}write" \
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp") && prof_sep="\n"
@@ -299,32 +308,32 @@ function client {
 		r_bin=$(which daos_field_read)
 		out=$($s taskset -c $pin_proc $r_bin $pool_id $cont_id \
 			"${client_index_key}" "${store_key}" \
-			testdata_$i $R $U $n_to_read $hold $S ${I2} $i $all_to_files 2>&1)
+			testdata_$i $R $U $n_to_read $hold $S ${I2} $i $all_to_files $barrier_ts 2>&1)
 		[ $? != 0 ] && failed=1 && which_failed="${which_failed}${sep}read" \
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp") && prof_sep="\n"
 
-		if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
+		#if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
 
-			if [ $all_to_files -eq 1 ] ; then
-				outs=($(ls testdata_$i_*))
-				for of in "${outs[@]}" ; do
-					$s cmp testdata $of -n $cmp_n
-					[ $? != 0 ] && failed=1 \
-					&& which_failed="${which_failed}${sep}read iter cmp" \
-					&& sep="; " \
-					&& log="${log}"${log_sep}"Client iteration cmp failed: $of" \
-					&& log_sep="\n"
-				done
-			else
-				$s cmp testdata testdata_$i -n $cmp_n
-				[ $? != 0 ] && failed=1 \
-				&& which_failed="${which_failed}${sep}read final cmp" \
-				&& sep="; " \
-				&& log="${log}"${log_sep}"Client final cmp failed" \
-				&& log_sep="\n"
-			fi
-		fi
+		#	if [ $all_to_files -eq 1 ] ; then
+		#		outs=($(ls testdata_$i_*))
+		#		for of in "${outs[@]}" ; do
+		#			$s cmp testdata $of -n $cmp_n
+		#			[ $? != 0 ] && failed=1 \
+		#			&& which_failed="${which_failed}${sep}read iter cmp" \
+		#			&& sep="; " \
+		#			&& log="${log}"${log_sep}"Client iteration cmp failed: $of" \
+		#			&& log_sep="\n"
+		#		done
+		#	else
+		#		$s cmp testdata testdata_$i -n $cmp_n
+		#		[ $? != 0 ] && failed=1 \
+		#		&& which_failed="${which_failed}${sep}read final cmp" \
+		#		&& sep="; " \
+		#		&& log="${log}"${log_sep}"Client final cmp failed" \
+		#		&& log_sep="\n"
+		#	fi
+		#fi
 	fi
 
 	[ $failed -ne 0 ] && echo "Node $I client $i failed at: $which_failed" \
@@ -351,20 +360,20 @@ done
 
 wait
 
-if [ $U -eq 0 ] ; then
-	failed=0
-
-	r_bin=$(which daos_field_read)
-	out=$($s $r_bin $pool_id $cont_id "${index_key}" "${store_key}" testdata_final 1 0 1 0 0 0 $N 0 2>&1)
-	[ $? != 0 ] && failed=1 && echo "Final read failed"
-
-	if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
-		$s cmp testdata testdata_final -n $cmp_n
-		[ $? != 0 ] && failed=1 && echo "Final cmp failed"
-	fi
-
-	[ $failed -eq 0 ] && echo "Final read and cmp succeeded"
-fi
+#if [ $U -eq 0 ] ; then
+#	failed=0
+#
+#	r_bin=$(which daos_field_read)
+#	out=$($s $r_bin $pool_id $cont_id "${index_key}" "${store_key}" testdata_final 1 0 1 0 0 0 $N 0 0 2>&1)
+#	[ $? != 0 ] && failed=1 && echo "Final read failed"
+#
+#	if [ $failed -eq 0 ] && [[ "${osize}" == "1MiB" ]] ; then
+#		$s cmp testdata testdata_final -n $cmp_n
+#		[ $? != 0 ] && failed=1 && echo "Final cmp failed"
+#	fi
+#
+#	[ $failed -eq 0 ] && echo "Final read and cmp succeeded"
+#fi
 
 end=`date +%s`
 

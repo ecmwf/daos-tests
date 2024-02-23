@@ -18,42 +18,57 @@
 
 function create_pool_cont {
 
-posix_pool=$1
-dummy_daos=$2
-servers=$3
+local posix_pool=$1
+local on_lustre=$2
+local servers=$3
+local test_name=${4:-field_io}  # either kronos or fdb_hammer or field_io
 
-if [[ "$dummy_daos" == "true" ]] ; then
+local code=0
 
-    pool_param="--pool newlust."
-    [[ "$servers" == "single_server" ]] && pool_param+="1node"
+if [[ "$on_lustre" == "true" ]] ; then
+
+    local pool_param="--pool newlust."
+    #local pool_param="--ost "
+    [[ "$servers" == "single_server" ]] && pool_param+="1nodes"
     [[ "$servers" == "dual_server" ]] && pool_param+="2nodes"
     [[ "$servers" == "quad_server" ]] && pool_param+="4nodes"
     [[ "$servers" == "hexa_server" ]] && echo "Not implemented" && return 1
-    [[ "$servers" == "octa_server" ]] && pool_param=
-    [[ "$servers" == "ten_server" ]] && echo "Not implemented" && return 1
-    [[ "$servers" == "twelve_server" ]] && echo "Not implemented" && return 1
-    [[ "$servers" == "fourteen_server" ]] && echo "Not implemented" && return 1
-    [[ "$servers" == "sixteen_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "octa_server" ]] && pool_param+="8nodes"
+    #[[ "$servers" == "ten_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "ten_server" ]] && pool_param+="10nodes"
+    #[[ "$servers" == "twelve_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "twelve_server" ]] && pool_param=
+    #[[ "$servers" == "fourteen_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "fourteen_server" ]] && pool_param+="14nodes"
+    #[[ "$servers" == "sixteen_server" ]] && echo "Not implemented" && return 1
+    [[ "$servers" == "sixteen_server" ]] && pool_param=
 
-    test_dir=/newlust/test_field_io_tmp
+    local test_dir=/newlust/test_${test_name}_tmp
 
     mkdir -p ${test_dir}
     lfs setstripe -c -1 ${pool_param} ${test_dir}
-
-    DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
-
-    rand1=$(od -An -N3 -i /dev/random)
-    rand2=$(od -An -N3 -i /dev/random)
-    rand1=$(printf "%08d" $rand1)
-    rand2=$(printf "%012d" $rand2)
-    pool_id="${rand1}-0000-0000-0000-${rand2}"
-    cont_id="00000000-0000-0000-0000-000000000001"
-    
-    mkdir -p ${DUMMY_DAOS_DATA_ROOT}/${pool_id}/${cont_id}
     code=$?
 
+    # for both dummy daos field I/O and fdb-hammer on posix we create a pool ID
+    local rand1=$(od -An -N3 -i /dev/random)
+    local rand2=$(od -An -N3 -i /dev/random)
+    rand1=$(printf "%08d" $rand1)
+    rand2=$(printf "%012d" $rand2)
+    local pool_id="${rand1}-0000-0000-0000-${rand2}"
+
     echo "POOL: $pool_id"
-    echo "CONT: $cont_id"
+
+    # for dummy daos field I/O:
+    if [[ "$test_name" == "field_io" ]] ; then
+        local cont_id="00000000-0000-0000-0000-000000000001"
+
+        mkdir -p ${DUMMY_DAOS_DATA_ROOT}/${pool_id}/${cont_id}
+        code=$?
+
+        echo "CONT: $cont_id"
+
+        DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
+    fi
 
 else
 
@@ -62,10 +77,11 @@ cont_create_args=
 
 cat > cpool.sh <<EOF
 
-export LD_LIBRARY_PATH=/usr/lib64:\$LD_LIBRARY_PATH
-
-module load libfabric/latest
-export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:\$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:\$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/libfabric/latest/lib:\$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/libfabric/opx-beta:\$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/usr/lib:/usr/lib64/:\$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/prereq/release/spdk/lib
 
 #export CRT_PHY_ADDR_STR="ofi+sockets"
 #export FI_SOCKETS_MAX_CONN_RETRY=1
@@ -111,13 +127,13 @@ npools=\$(echo "\$out" | tail -n +3 | wc -l)
 
 group=\$(id -g -n)
 user=\$(id -u -n)
-out=\$(dmg pool create --label=testpool -s 950G -g \$group -u \$user -i -o \${test_src_dir}/ngio/config/daos_control.yaml)
+out=\$(dmg pool create testpool -s 1350G -g \$group -u \$user -i -o \${test_src_dir}/ngio/config/daos_control.yaml)
 code=\$?
 [ \$code -ne 0 ] && pkill daos_agent && exit 1
 out2=\$(echo "\$out" | grep "UUID")
 export pool_id=\$(echo "\$out2" | grep "UUID" | awk '{print \$3}')
 
-out=\$(daos container create --pool="\$pool_id" $cont_create_args)
+out=\$(daos container create testpool testcont $cont_create_args)
 code=\$?
 [ \$code -ne 0 ] && pkill daos_agent && exit 1
 export cont_id=\$(echo "\$out" | grep "UUID" | awk '{print \$4}')
@@ -130,7 +146,7 @@ echo "CONT: \$cont_id"
 
 EOF
 
-ssh nextgenio-cn28 '/bin/env bash -s' < cpool.sh
+ssh nextgenio-cn01 '/bin/env bash -s' < cpool.sh
 code=$?
 
 rm cpool.sh
@@ -143,13 +159,20 @@ return $code
 
 function destroy_pool_cont {
 
-dummy_daos=$1
+local on_lustre=$1
+local test_name=${2:-field_io}
 
-if [[ "$dummy_daos" == "true" ]] ; then
+local code=0
 
-    test_dir=/newlust/test_field_io_tmp
-    DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
-    find ${DUMMY_DAOS_DATA_ROOT} -maxdepth 2 -mindepth 2 -print0 | xargs -0 -P 48 rm -rf
+if [[ "$on_lustre" == "true" ]] ; then
+
+    local test_dir=/newlust/test_${test_name}_tmp
+
+    if [[ "$test_name" == "field_io" ]] ; then
+        DUMMY_DAOS_DATA_ROOT=${test_dir}/tmp_dir_fdb5_dummy_daos
+        find ${DUMMY_DAOS_DATA_ROOT} -maxdepth 2 -mindepth 2 -print0 | xargs -0 -P 48 rm -rf
+    fi
+
     rm -rf ${test_dir}
     code=$?
 
@@ -157,10 +180,11 @@ else
 
 cat > dpool.sh <<'EOF'
 
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
-
-module load libfabric/latest
-export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/libfabric/opx-beta:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/usr/lib:/usr/lib64/:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/prereq/release/spdk/lib
 
 #export CRT_PHY_ADDR_STR="ofi+sockets"
 #export FI_SOCKETS_MAX_CONN_RETRY=1
@@ -208,7 +232,7 @@ npools=$(echo "$out" | tail -n +3 | wc -l)
 [ $npools -ne 1 ] && echo "Unexpectedly found $npools pools." && pkill daos_agent && exit 1
 
 echo "$out" | tail -n +3 | awk '{print $1}' | \
-	xargs -I {} dmg pool destroy {} -f -i -o /tmp/daos-tests/ngio/config/daos_control.yaml
+	xargs -I {} dmg pool destroy {} -f -r -i -o /tmp/daos-tests/ngio/config/daos_control.yaml
 code=$?
 
 pkill daos_agent
@@ -217,7 +241,7 @@ exit $code
 
 EOF
 
-ssh nextgenio-cn28 '/bin/env bash -s' < dpool.sh
+ssh nextgenio-cn01 '/bin/env bash -s' < dpool.sh
 code=$?
 
 rm dpool.sh

@@ -1,4 +1,4 @@
-access_points: ['nextgenio-cn28']
+access_points: ['nextgenio-cn01']
 port: 10001
 transport_config:
   allow_insecure: true
@@ -11,6 +11,7 @@ hyperthreads: true
 socket_dir: /tmp/daos/run/daos_server
 control_log_file: /tmp/daos/log/daos_control.log
 helper_log_file: /tmp/daos/log/daos_admin.log
+telemetry_port: 9191
 engines:
 -
   targets: 12
@@ -19,7 +20,11 @@ engines:
   pinned_numa_node: 0
   log_file: /tmp/daos/log/daos_server1.log
   env_vars:
-  - LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/home/software/libfabric/opx-beta:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/usr/lib:/usr/lib64/:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/prereq/release/spdk/lib
   - CRT_TIMEOUT=30
   - CRT_CREDIT_EP_CTX=0
   - FI_TCP_MAX_CONN_RETRY=1
@@ -29,6 +34,8 @@ engines:
   - FI_PROVIDER=tcp
   - FI_TCP_IFACE=ib0
   - FI_TCP_BIND_BEFORE_CONNECT=1
+  - FI_OFI_RXM_DEF_TCP_WAIT_OBJ=pollfd
+  - ABT_THREAD_STACKSIZE=32768
   scm_mount: /mnt/daos/1
   scm_class: dcpm
   scm_list: [/dev/pmem0]
@@ -39,7 +46,11 @@ engines:
   pinned_numa_node: 1
   log_file: /tmp/daos/log/daos_server2.log
   env_vars:
-  - LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/home/software/libfabric/opx-beta:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=/usr/lib:/usr/lib64/:$LD_LIBRARY_PATH
+#  - LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/prereq/release/spdk/lib
   - CRT_TIMEOUT=30
   - CRT_CREDIT_EP_CTX=0
   - FI_TCP_MAX_CONN_RETRY=1
@@ -49,6 +60,8 @@ engines:
   - FI_PROVIDER=tcp
   - FI_TCP_IFACE=ib1
   - FI_TCP_BIND_BEFORE_CONNECT=1
+  - FI_OFI_RXM_DEF_TCP_WAIT_OBJ=pollfd
+  - ABT_THREAD_STACKSIZE=32768
   scm_mount: /mnt/daos/2
   scm_class: dcpm
   scm_list: [/dev/pmem1]

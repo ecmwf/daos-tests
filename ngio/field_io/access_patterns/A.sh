@@ -65,17 +65,20 @@ for r in `seq 1 $REP` ; do
     echo "Pool is: $pool_id"
     echo "Cont is: $cont_id"
 
+    span_length=10
+    io_start_barrier=$(( $(date +%s) + ${span_length} + 15 ))
     out=$(./field_io/submitter.sh $c test_field_io -PRV tcp $s --osize ${osize} \
         --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
         $n $WR 0 -P $pool_id -C $cont_id --unique --n-to-write $WR \
-        --sleep $sleep --span-length 20 --hold $dummy_daos_arg)
+        --sleep $sleep -L ${span_length} -B $io_start_barrier $dummy_daos_arg)
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done
+    io_start_barrier=$(( $(date +%s) + ${span_length} + 15 ))
     out=$(./field_io/submitter.sh $c test_field_io -PRV tcp $s --osize ${osize} \
         --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
         $n 0 $WR -P $pool_id -C $cont_id --unique --n-to-read $WR \
-        --sleep $sleep --span-length 20 --hold $dummy_daos_arg)
+        --sleep $sleep -L ${span_length} -B $io_start_barrier $dummy_daos_arg)
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done

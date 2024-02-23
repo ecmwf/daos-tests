@@ -16,7 +16,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
-ssh nextgenio-cn28
+ssh nextgenio-cn01
 
 #export FI_TCP_IFACE=ib0
 export FI_TCP_BIND_BEFORE_CONNECT=1
@@ -33,9 +33,10 @@ export D_LOG_MASK=
 export DD_SUBSYST=all
 export DD_MASK=all
 export DAOS_AGENT_DRPC_DIR=/tmp/daos/run/daos_agent/
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
-
-module load libfabric/latest
-export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/home/software/libfabric/opx-beta:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/usr/lib:/usr/lib64/:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/prereq/release/spdk/lib
 
 dmg storage format --force -i -o /tmp/daos-tests/ngio/config/daos_control.yaml

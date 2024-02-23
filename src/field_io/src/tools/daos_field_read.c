@@ -74,6 +74,7 @@ static daos_handle_t poh, coh;
 int main(int argc, char** argv) {
 
 	int rc = 0, nrep, unique, n_to_read, hold, zzz, node_id, client_id, all_to_files, i;
+	long int timestamp_wait;
 	char* index_key, * store_key, * data_path;
 	ssize_t r;
 	char* pool_uuid, * co_uuid;
@@ -85,8 +86,8 @@ int main(int argc, char** argv) {
 
 	p_s(&tval_before);
 
-	if (argc != 14) {
-		fprintf(stderr, "usage: daos_read POOL_ID CONT_ID INDEX_DICT STORE_DICT DATA_PATH N_REP UNIQUE N_TO_READ HOLD SLEEP NODE_ID CLIENT_ID ALL_TO_FILES\n");
+	if (argc != 15) {
+		fprintf(stderr, "usage: daos_read POOL_ID CONT_ID INDEX_DICT STORE_DICT DATA_PATH N_REP UNIQUE N_TO_READ HOLD SLEEP NODE_ID CLIENT_ID ALL_TO_FILES TIMESTAMP_WAIT\n");
 		exit(1);
 	}
 
@@ -123,17 +124,7 @@ int main(int argc, char** argv) {
 
 	all_to_files = atoi(argv[13]);
 
-	rc = daos_init();
-	ASSERT(rc == 0, "daos_init failed with %d", rc);
-
-	rc = daos_pool_connect(pool_uuid, NULL, DAOS_PC_RW, &poh, NULL, NULL);
-	ASSERT(rc == 0, "pool connect failed with %d", rc);
-
-	p_e("read", "init and connect time", node_id, client_id, &tval_before, &tval_after, &tval_result);
-
-	p_s(&tval_before);
-	sleep(hold);
-	p_e("read", "hold sleep time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+	timestamp_wait = atol(argv[14]);
 
 	char store_key_new[BUFLEN], * store_key_i;
 	char data_path_new[BUFLEN], * data_path_i;
@@ -141,8 +132,6 @@ int main(int argc, char** argv) {
 	char** data = NULL;
 	size_t * len;
 	ssize_t buf_len;
-
-	p_s(&tval_before);
 
 	data = (char **) malloc(nrep * sizeof(char *));
 	len = (size_t *) malloc(nrep * sizeof(size_t));
@@ -160,18 +149,44 @@ int main(int argc, char** argv) {
 	tval_before_aopen  = (struct timeval *) malloc(nrep * sizeof(struct timeval));
 	tval_after_aclose  = (struct timeval *) malloc(nrep * sizeof(struct timeval));
 
-	p_e("read", "preproc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
-
 	printf("THE POOL IS: %s\n", argv[1]);
 	printf("THE CONT IS: %s\n", argv[2]);
 	printf("THE INDEX_KEY IS: %s\n", argv[3]);
 	printf("THE DATA PATH IS: %s\n", argv[5]);
+
+	p_e("read", "preproc time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+
+	p_s(&tval_before);
+
+	rc = daos_init();
+	ASSERT(rc == 0, "daos_init failed with %d", rc);
+
+	rc = daos_pool_connect(pool_uuid, NULL, DAOS_PC_RW, &poh, NULL, NULL);
+	ASSERT(rc == 0, "pool connect failed with %d", rc);
+
+	p_e("read", "init and connect time", node_id, client_id, &tval_before, &tval_after, &tval_result);
+
+	p_s(&tval_before);
+	sleep(hold);
+	p_e("read", "hold sleep time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
 	rc = daos_cont_open(poh, co_uuid, DAOS_COO_RW, &coh, NULL, NULL);
 	ASSERT(rc == 0, "container open failed with %d", rc);
 
 	cc_init();
 	oid_alloc_store_init();
+
+	p_s(&tval_before);
+
+	long int current_time() {
+		struct timeval tval;
+		gettimeofday(&tval, NULL);
+		return tval.tv_sec;
+	}
+
+	while (current_time() < timestamp_wait) sleep(1);
+
+	p_e("write", "barrier time", node_id, client_id, &tval_before, &tval_after, &tval_result);
 
 	for (i = 0; i < nrep; i++) {
 		if (prof) gettimeofday(&tval_before_rep[i], NULL);
@@ -199,6 +214,8 @@ int main(int argc, char** argv) {
 
 		if (prof) gettimeofday(&tval_after_io[i], NULL);
 
+        free(data[i]);
+
 		if (i != (nrep - 1) && zzz > 0) {
 			sleep(zzz);
 		}
@@ -219,37 +236,37 @@ int main(int argc, char** argv) {
 	for (i = 0; i < nrep; i++) {
 		printf("THE ITERATION IS: %d\n", i);
 
-		if (all_to_files == 0) {
-			data_path_i = data_path;
-		} else {
-			data_path_new[0] = '\0';
-			strcat(data_path_new, data_path);
-			sprintf(data_path_new + strlen(data_path_new),
-				"_%04d%04d%04d", node_id, client_id, i % n_to_read);
-			data_path_i = data_path_new;
-		}
+		//if (all_to_files == 0) {
+		//	data_path_i = data_path;
+		//} else {
+		//	data_path_new[0] = '\0';
+		//	strcat(data_path_new, data_path);
+		//	sprintf(data_path_new + strlen(data_path_new),
+		//		"_%04d%04d%04d", node_id, client_id, i % n_to_read);
+		//	data_path_i = data_path_new;
+		//}
 
-		if (all_to_files == 1 || i == (nrep - 1)) {
-			fd = open(data_path_i, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
-			if (fd < 0) {
-				free(data[i]);
-				ASSERT(fd >= 0, "data_path open failed");
-			}
+		//if (all_to_files == 1 || i == (nrep - 1)) {
+		//	fd = open(data_path_i, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+		//	if (fd < 0) {
+		//		free(data[i]);
+		//		ASSERT(fd >= 0, "data_path open failed");
+		//	}
 
-			buf_len = write(fd, data[i], len[i]);
+		//	buf_len = write(fd, data[i], len[i]);
 
-			if (buf_len < 0) {
-				printf("write failed with %d", (int) buf_len);
-			}
+		//	if (buf_len < 0) {
+		//		printf("write failed with %d", (int) buf_len);
+		//	}
 
-			if (buf_len < len[i]) {
-				printf("written less bytes than expected");
-			}
+		//	if (buf_len < len[i]) {
+		//		printf("written less bytes than expected");
+		//	}
 
-			rc = close(fd);
-		}
+		//	rc = close(fd);
+		//}
 
-		free(data[i]);
+		//free(data[i]);
 
 		if (prof) {
 			if (i == 0) {

@@ -229,15 +229,12 @@ if [[ "$dummy_daos" == "ON" ]] ; then
 
 else
 
-export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/usr/lib:/usr/lib64:$LD_LIBRARY_PATH
 
 module load cmake
 
 export PATH="$field_io_shared_dir/bin:$PATH"
 export LD_LIBRARY_PATH="$field_io_shared_dir/lib:$LD_LIBRARY_PATH"
-
-module load libfabric/latest
-export LD_LIBRARY_PATH=/home/software/psm2/11.2.228/usr/lib64:/home/software/libfabric/latest/lib:$LD_LIBRARY_PATH
 
 rm -rf /tmp/daos/log
 

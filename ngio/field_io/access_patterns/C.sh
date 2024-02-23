@@ -70,25 +70,27 @@ for r in `seq 1 $REP` ; do
 
     out=$(./field_io/submitter.sh $c2 test_field_io -PRV tcp $s --osize ${osize} \
             --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
-            $n 1 0 -P $pool_id -C $cont_id --unique \
-            --span-length 1 --n-to-write 1 $dummy_daos_arg)
+            $n $WR 0 -P $pool_id -C $cont_id --unique --n-to-write $WR \
+            -L 1 $dummy_daos_arg)
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* $USER " ; do sleep 5 && echo "Sleeping..."; done
 
     mkdir -p ${res_dir}/setup
-    mv runs/daos_${c2}_test_field_io_-PRV_tcp_*_${n}_1_0_-P_${pool_id}_-C_${cont_id}_* ${res_dir}/setup/
+    mv runs/daos_${c2}_test_field_io_-PRV_tcp_*_${n}_${WR}_0_-P_${pool_id}_-C_${cont_id}_* ${res_dir}/setup/
 
+    span_length=5
+    io_start_barrier=$(( $(date +%s) + ${span_length} + 15 ))
     out=$(./field_io/submitter.sh $c2 test_field_io -PRV tcp $s --osize ${osize} \
             --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
-            $n $WR 0 -P $pool_id -C $cont_id --unique \
-            --sleep $sleep --span-length 5 --hold --n-to-write 1 $dummy_daos_arg)
+            $n $WR 0 -P $pool_id -C $cont_id --unique --n-to-write $WR \
+            --sleep $sleep -L ${span_length} -B $io_start_barrier $dummy_daos_arg)
     echo "$out"
     jid1=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     out=$(./field_io/submitter.sh $c2 test_field_io -PRV tcp $s --osize ${osize} \
             --ocm ${ocvec[0]} --oci ${ocvec[1]} --ocs ${ocvec[2]} \
-            $n 0 $WR -P $pool_id -C $cont_id --unique \
-            --sleep $sleep --span-length 5 --hold --n-to-read 1 $dummy_daos_arg)
+            $n 0 $WR -P $pool_id -C $cont_id --unique --n-to-read $WR \
+            --sleep $sleep -L ${span_length} -B $io_start_barrier $dummy_daos_arg)
     echo "$out"
     jid2=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *${jid1} .* $USER " -e "^ *${jid2} .* $USER " ; do
