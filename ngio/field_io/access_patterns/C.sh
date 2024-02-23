@@ -20,11 +20,10 @@ cd $HOME/daos-tests/ngio
 test_name=patternC
 servers="dual_server"
 simplified=( "" "--simple" "--simple-kvs" )
-osizes=("1MiB" "5MiB" "10MiB" "20MiB")
+osizes=("1MiB" "5MiB" "10MiB" "20MiB" "50MiB")
 posix_cont="false"
 dummy_daos="false"
-ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_SX OC_SX OC_S1" )
-#C=(1 2 4 8)
+ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_S1 OC_S1 OC_SX" "OC_SX OC_SX OC_S1" )
 C=(4)
 REP=10
 WR=2000
