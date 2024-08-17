@@ -160,6 +160,12 @@ int main(int argc, char** argv) {
 		data_len += PARTLEN;
 		rc = lseek(fd, 0, SEEK_SET);
 	}
+	
+	// // generating random data to avoid opening seed grib file (necessary when testing with DFUSE/IOIL and LD_PRELOAD)
+	// srand((unsigned int) time(NULL));
+	// data_len = 1024 * 1024 * size_factor;
+	// data = malloc(data_len);
+	// for (i = 0; i < data_len; i++) data[i] = rand();
 
 	struct timeval * tval_before_rep, * tval_after_rep;
 	tval_before_rep  = (struct timeval *) malloc(nrep * sizeof(struct timeval));

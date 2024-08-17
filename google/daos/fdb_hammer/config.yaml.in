@@ -1,0 +1,12 @@
+type: local
+schema: @SCHEMA_PATH@
+engine: daos
+store: daos
+daos:
+  catalogue:
+    pool: @POOL@
+    root_cont: @CONTAINER@
+  store:
+    pool: @POOL@
+  client:
+    container_oids_per_alloc: 10000

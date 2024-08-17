@@ -1,0 +1,134 @@
+
+# Copyright 2022 European Centre for Medium-Range Weather Forecasts (ECMWF)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation nor
+# does it submit to any jurisdiction.
+
+
+blueprint_name: lustre-build
+
+vars:
+  project_id: ${PROJECT_ID?}
+  deployment_name: lustre-build
+  region: us-central1
+  zone: us-central1-a
+
+deployment_groups:
+
+- group: primary
+  modules:
+
+  - id: build-network
+    source: modules/network/vpc
+
+  - id: lustre_boot_script
+    source: modules/scripts/startup-script
+    settings:
+      runners:
+      - type: shell
+        destination: setup_lustre.sh
+        content: |
+          #!/bin/sh
+          #
+          # --- install lustre ---
+          #
+          sudo tee /etc/yum.repos.d/lustre.repo <<INNEREOF
+          [lustre-server]
+          name=lustre-server
+          baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.15.4/el8.9/server
+          gpgcheck=0
+
+          [lustre-client]
+          name=lustre-client
+          baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.15.4/el8.9/client
+          gpgcheck=0
+
+          [e2fsprogs-wc]
+          name=e2fsprogs-wc
+          baseurl=https://downloads.whamcloud.com/public/e2fsprogs/latest/el8
+          gpgcheck=0
+          INNEREOF
+
+          sudo dnf makecache
+
+          sudo dnf install e2fsprogs --disablerepo=* --enablerepo=e2fsprogs-wc --assumeyes
+
+          sudo dnf install \
+          --disablerepo=base,extras,updates \
+          --enablerepo=lustre-server \
+          kernel \
+          kernel-devel \
+          kernel-headers \
+          kernel-tools \
+          kernel-tools-libs \
+          --assumeyes
+
+          #kernel-tools-libs-devel --assumeyes
+          # add powertools in enablerepo above?
+          #sudo dnf install --enablerepo=powertools kernel-tools-libs-devel --assumeyes
+
+          sudo dnf install --enablerepo=lustre-server \
+          kmod-lustre \
+          kmod-lustre-osd-ldiskfs \
+          lustre-osd-ldiskfs-mount \
+          lustre \
+          --assumeyes
+
+          sudo adduser ${DAOS_USER?}
+          sudo usermod -u 2000 ${DAOS_USER}
+          sudo groupmod -g 2000 ${DAOS_USER}
+
+          sudo adduser ${LUSTRE_USER?}
+          sudo usermod -u 3000 ${LUSTRE_USER}
+          sudo groupmod -g 3000 ${LUSTRE_USER}
+
+          sudo grubby --set-default=/boot/vmlinuz-4.18.0-513.9.1.el8_lustre.x86_64
+
+          #
+          # --- other setup ---
+          #
+          sed -i -e 's/download_updates = yes/download_updates = no/g' -e 's/apply_updates = yes/apply_updates = no/g' /etc/dnf/automatic.conf
+          pkill -9 dnf-automatic
+          rm -rf /var/lib/rpm/.dbenv.lock /var/lib/rpm/.rpm.lock
+
+  - id: builder_sa
+    source: community/modules/project/service-account
+    settings:
+      name: pkr
+      project_roles:
+      - compute.instanceAdmin.v1
+      - logging.logWriter
+      - monitoring.metricWriter
+      - storage.objectViewer
+      - iam.serviceAccountUser
+
+- group: packer-lustre
+  modules:
+
+  - id: custom-lustre
+    source: modules/packer/custom-image
+    kind: packer
+    use:
+    - build-network
+    - lustre_boot_script
+    - builder_sa
+    settings:
+      source_image_project_id: [rocky-linux-cloud]
+      source_image: rocky-linux-8-v20240515
+      disk_size: 20
+      image_family: my-lustre-image
+      state_timeout: 15m
+

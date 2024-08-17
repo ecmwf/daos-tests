@@ -33,7 +33,7 @@ find_path(DUMMY_DAOS_INCLUDE_DIR
 )
 
 find_library(DUMMY_DAOS_LIBRARY
-    NAMES daos
+    NAMES dummy_daos
     HINTS
         ${FDB5_ROOT}
         ${FDB5_DIR}
