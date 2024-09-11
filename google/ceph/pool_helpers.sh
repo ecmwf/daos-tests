@@ -36,9 +36,7 @@ local code=0
     # Therefore the lower power of 2 is used in most cases.
 
     #[[ "$servers" == "single_server" ]] && server_nodes=1 && best_pg=1024
-    ##[[ "$servers" == "dual_server" ]] && pool="default-pool"
-    #[[ "$servers" == "dual_server" ]] && echo "Not implemented" && return 1
-    #[[ "$servers" == "quad_server" ]] && server_nodes=4 && best_pg=4086
+    #[[ "$servers" == "quad_server" ]] && server_nodes=4 && best_pg=4096
     #[[ "$servers" == "octa_server" ]] && server_nodes=8 && best_pg=8192
     #[[ "$servers" == "twelve_server" ]] && server_nodes=12 && best_pg=8192
     #[[ "$servers" == "sixteen_server" ]] && server_nodes=16 && best_pg=16384
@@ -47,19 +45,14 @@ local code=0
 
     # however, the ideal pg is experimentally found to be even one step lower
     [[ "$servers" == "single_server" ]] && server_nodes=1 && best_pg=512
-    #[[ "$servers" == "dual_server" ]] && pool="default-pool"
-    #[[ "$servers" == "dual_server" ]] && echo "Not implemented" && return 1
     [[ "$servers" == "dual_server" ]] && server_nodes=2 && best_pg=1024
     [[ "$servers" == "quad_server" ]] && server_nodes=4 && best_pg=2048
-    [[ "$servers" == "octa_server" ]] && server_nodes=8 && best_pg=4086
-    [[ "$servers" == "twelve_server" ]] && server_nodes=12 && best_pg=4086
+    [[ "$servers" == "octa_server" ]] && server_nodes=8 && best_pg=4096
+    [[ "$servers" == "twelve_server" ]] && server_nodes=12 && best_pg=4096
     [[ "$servers" == "sixteen_server" ]] && server_nodes=16 && best_pg=8192
     [[ "$servers" == "twenty_server" ]] && server_nodes=20 && best_pg=8192
     [[ "$servers" == "twentyfour_server" ]] && server_nodes=24 && best_pg=8192
 
-    #[[ "$pool" == "" ]] && echo "Number of servers not recognised" && return 1
-
-    
     local pool="default-pool-${best_pg}-pg-1-1-rep"
     
     local namespace=$(od -An -N3 -i /dev/random)
@@ -87,7 +80,7 @@ local code=0
     sudo cat /etc/ceph/ceph.client.admin.keyring > $HOME/.ceph/ceph.client.admin.keyring
     cat >> $HOME/.ceph/ceph.conf << EOF
 [client]
-        keyring = /home/n_manubens_gil_gmail_com/.ceph/ceph.client.admin.keyring
+        keyring = $HOME/.ceph/ceph.client.admin.keyring
 EOF
 
     replicas=1
@@ -95,22 +88,11 @@ EOF
     [ $? -ne 0 ] && echo "Pool create failed" && code=1
     sudo ceph osd pool set ${pool} min_size $replicas
     sudo ceph osd pool set ${pool} size $replicas --yes-i-really-mean-it
-    #sudo ceph osd pool set ${pool} pg_num 2048
-    #sudo ceph osd pool set ${pool} pgp_num 2048
-
-    # for pool per DB
-    #dbpool="dbpool_rd:xxx0:enfo:20230713:0000:g"
-    #sudo ceph osd pool create ${dbpool} 512 512 replicated
-    #[ $? -ne 0 ] && echo "Pool create failed" && code=1
-    #sudo ceph osd pool set ${dbpool} min_size 1
-    #sudo ceph osd pool set ${dbpool} size 1 --yes-i-really-mean-it
 
     echo "POOL: $pool"
     echo "CONT: $namespace"
 
-#fi
-
-return $code
+    return $code
 
 }
 
@@ -127,16 +109,12 @@ local osds_per_node=16
 local best_pg=
 
 [[ "$servers" == "single_server" ]] && server_nodes=1 && best_pg=512
-#[[ "$servers" == "dual_server" ]] && pool="default-pool"
-[[ "$servers" == "dual_server" ]] && echo "Not implemented" && return 1
 [[ "$servers" == "quad_server" ]] && server_nodes=4 && best_pg=2048
-[[ "$servers" == "octa_server" ]] && server_nodes=8 && best_pg=4086
-[[ "$servers" == "twelve_server" ]] && server_nodes=12 && best_pg=4086
+[[ "$servers" == "octa_server" ]] && server_nodes=8 && best_pg=4096
+[[ "$servers" == "twelve_server" ]] && server_nodes=12 && best_pg=4096
 [[ "$servers" == "sixteen_server" ]] && server_nodes=16 && best_pg=8192
 [[ "$servers" == "twenty_server" ]] && server_nodes=20 && best_pg=8192
 [[ "$servers" == "twentyfour_server" ]] && server_nodes=24 && best_pg=8192
-
-#[[ "$pool" == "" ]] && echo "Number of servers not recognised" && return 1
 
 local pool="default-pool-${best_pg}-pg-1-1-rep"
 

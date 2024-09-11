@@ -16,26 +16,39 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+# --- PARAMETERS ---
+
+# number of nodes DAOS has been deployed on
+servers="sixteen_server"
+
+# number of client nodes to run the becnhmark on
+C=(32 16 8 1)
+
+# Note: also review values for N below to configure
+# number of processes per clietn node
+
+# number of I/O operations per process
+WR=10000
+
+# size of the fields to be written/read
+osizes=("1MiB")
+
+# object classes to test for the KVs and Arrays
+ocvecs=( "OC_S1 OC_S1" )
+ocvecs=( "OC_SX OC_SX OC_S1" )
+
+# test repetitions
+REP=3
+
+# ------------------
+
 cd $HOME/daos-tests/google/daos
 test_name=patternA
-servers="sixteen_server"
-#simplified=( "" "--simple" "--simple-kvs" )
 simplified=( "--simple-kvs" )
-#osizes=("1MiB" "5MiB" "10MiB" "20MiB" "50MiB")
-osizes=("1MiB")
 posix_cont="false"
 dummy_daos="false"
 dummy_daos_dfuse="false"
 dummy_daos_ioil="false"
-#ocvecs=( "OC_S1 OC_S1 OC_S1" "OC_S2 OC_S2 OC_S2" "OC_SX OC_SX OC_SX" "OC_SX OC_S2 OC_S1" "OC_S1 OC_S1 OC_SX" "OC_SX OC_SX OC_S1" )
-ocvecs=( "OC_SX OC_SX OC_S1" )
-#C=(1 2 4 8 12)
-#C=(8 16 24 32)
-#C=(1 8 16 32)
-#C=(32 16 8 1)
-C=(32)
-REP=3
-WR=10000
 sleep=0
 source pool_helpers.sh
 for s in "${simplified[@]}" ; do
@@ -61,19 +74,9 @@ ocname=$(echo ${ocvec} | tr ' ' '_')
 ocvec=($(echo "$ocvec"))
 for c in "${C[@]}" ; do
 [ $c -eq 1 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 1 ] && N=(32)
-[ $c -eq 2 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(8)
-#[ $c -eq 4 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 4 ] && N=(8)
 [ $c -eq 8 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 8 ] && N=(24)
-[ $c -eq 12 ] && N=(1 4 8 12 16 24 32)
 [ $c -eq 16 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 32 ] && N=(32 16 12 8 4 1)
-[ $c -eq 32 ] && N=(24)
-[ $c -eq 48 ] && N=(16 24)
+[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
 for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
     echo "### Pattern A $s, ${ocvec[@]}, ${osize}, C=$c, N=$n, rep=$r ###"

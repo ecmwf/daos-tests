@@ -90,37 +90,6 @@ for b in blocks:
 EOF
 ))
 
-#if [ $SLURM_NODEID -eq 0 ] ; then
-#
-#        received=()
-#        for node in "${nodelist[@]}" ; do
-#                [[ "$node" == "$SLURMD_NODENAME" ]] && continue
-#                echo "WAITING FOR MESSAGE from other nodes"
-#                received+=($(ncat -l -p 12345 | bash -c 'read MESSAGE; echo $MESSAGE'))
-#        done
-#
-#        a=($(printf '%s\n' "${nodelist[@]}" | sort))
-#        b=( "${nodelist[0]}" )
-#        b+=($(printf '%s\n' "${received[@]}" | sort))
-#        [[ "${a[@]}" == "${b[@]}" ]] && echo "Node configuration ended on all nodes" || \
-#                ( echo -e "Received unexpected messages while waiting for node configuration.\nExpected: ${a[@]}.\nReceived: ${b[@]}" )
-#
-#else
-#
-#        code=1
-#        while [ "$code" -ne 0 ] ; do
-#                echo "SENDING MESSAGE from $SLURMD_NODENAME to ${nodelist[0]}"
-#                echo "$SLURMD_NODENAME" | ncat ${nodelist[0]} 12345
-#                code=$?
-#                [ "$code" -ne 0 ] && sleep 2
-#        done
-#
-#fi
-
-
-
-
-
 
 
 
@@ -169,7 +138,6 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 	rep_params=
 	[[ "$rep_mode" == "rep" ]] && rep_params="-s 1 -i $reps_per_client $unique_rep_param"
 	[[ "$rep_mode" == "segment" ]] && rep_params="-s $reps_per_client"
-	#[[ "$rep_mode" == "segment" ]] && rep_params="-s $reps_per_client -i 100 -m"
 
 	unique_param=
 	[[ "$unique" == "true" ]] && unique_param="-F"	
@@ -177,10 +145,6 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 	keep_param=
 	[[ "$keep" == "true" ]] && keep_param="-k"
 
-	# if willing to bind clients to a specific socket, e.g. --bind-to ib0
-	#I_MPI_PIN_DOMAIN=auto I_MPI_PIN_ORDER=scatter I_MPI_PIN_CELL=core \
-	#I_MPI_PIN_DOMAIN=[1,4] \
-	#I_MPI_PIN_DOMAIN=1 I_MPI_PIN_CELL=unit \
 	I_MPI_PIN_DOMAIN=auto I_MPI_PIN_CELL=unit I_MPI_PIN_ORDER=scatter \
 	mpirun -n $(($clients_per_node * $n_nodes)) \
 		-ppn $clients_per_node $mpi_params -genv LD_LIBRARY_PATH=/home/daos-user/local/hdf5/lib \
@@ -189,14 +153,6 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 		$api_param $rw_params \
 		$ior_params $unique_param $keep_param -d $sleep \
 		-E -C -e -v -v -v
-		# ior segments:
-		#-t ${osize%MiB*}m -b ${osize%MiB*}m $rep_params \
-		# standard bw:
-		#-t 1m -b 8g \
-		# standard thr:
-		#-t 4k -b 1g \
-		# standard latency:
-		#-t 4k -b 100m -z \
 
 	for node in "${nodelist[@]}" ; do
 		[[ "$node" == "$SLURMD_NODENAME" ]] && continue

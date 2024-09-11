@@ -137,15 +137,6 @@ create() {
   create_node_template
   [ $? -ne 0 ] && return 1
 
-  #local i=
-  #local name=
-  #for i in `seq 1 $nnodes` ; do
-  #  name="mystore-${i}"
-  #  create_storage_node $name
-  #  [ $? -ne 0 ] && return 1
-  #  #sleep 5
-  #done
-
   create_storage_nodes $nnodes
   [ $? -ne 0 ] && return 1
 
@@ -189,21 +180,7 @@ echo '$( cat ./id_rsa_ceph.pub )' > /home/${ssh_user}/.ssh/id_rsa_ceph.pub
 chmod 600 /home/${ssh_user}/.ssh/id_rsa_ceph
 chmod 644 /home/${ssh_user}/.ssh/id_rsa_ceph.pub
 
-#cephadm add-repo --version CEPH_VERSION
-
-#cephadm install ceph-common
-
 MANAGER_IP=\$(ifconfig | grep eth0 -A1 | grep 'inet ' | awk '{print \$2}')
-
-# probably some things like the monitor need to run as root or with sudo to avoid the cephx errors,
-# rather than using allow_insecure here
-#cat > initial-ceph.conf << INNEREOF
-##[global]
-##osd crush chooseleaf type = 0
-#[mon]
-#mon_allow_pool_delete=true
-#auth_allow_insecure_global_id_reclaim=true
-#INNEREOF
 
 cephadm bootstrap \
   --mon-ip \${MANAGER_IP} \
@@ -212,22 +189,11 @@ cephadm bootstrap \
   --ssh-user ${ssh_user?} \
   --ssh-private-key /home/${ssh_user}/.ssh/id_rsa_ceph \
   --ssh-public-key /home/${ssh_user}/.ssh/id_rsa_ceph.pub
-#  --config initial-ceph.conf \
 
 ceph orch apply mon --unmanaged
 ceph config set mon mon_allow_pool_delete true
 ceph config set global mon_allow_pool_size_one true
 ceph config set global osd_pool_default_pg_autoscale_mode off
-# 1 GiB:
-#ceph config set global osd_max_object_size 1073741824
-# more than 1 GiB:
-#ceph config set global osd_max_object_size 1273741824
-# 100 GiB: too lage, breaks
-#ceph config set global osd_max_object_size 107374182400
-#ceph config set global auth_cluster_required none
-#ceph config set global auth_service_required none
-#ceph config set global auth_client_required none
-#ceph config set mon auth_allow_insecure_global_id_reclaim true
 
 for i in \$( seq 0 \$(( \${#storage_node_names[@]} - 1 )) ) ; do
   #ssh-copy-id -f -i /etc/ceph/ceph.pub ${ssh_user}@\${node}
@@ -247,7 +213,6 @@ for i in \$( seq 0 \$(( \${#storage_node_names[@]} - 1 )) ) ; do
   done
 done
 
-#ssh-copy-id -f -i /etc/ceph/ceph.pub ${ssh_user}@hpcslurm-controller
 ceph orch host add ${slurm_node_name} ${slurm_node_ip} --labels=_no_schedule,_admin
 
 ceph orch apply osd --all-available-devices

@@ -235,15 +235,11 @@ if [ "$SLURM_NODEID" -eq 0 ] ; then
 
 	cmake --build .
 
-	#[ $? -ne 0 ] && echo "${out}" >&2 && status=failed
 	[ $? -ne 0 ] && status=failed
 	
-	#ctest -j 12 -R daos
-
 	rm -rf ${fdb_build_dir}
 	cmake --install . --prefix ${fdb_build_dir}
 
-	#[ $? -ne 0 ] && echo "${out}" >&2 && status=failed
         [ $? -ne 0 ] && status=failed
 
 	#rm -rf $HOME/fdb5_build

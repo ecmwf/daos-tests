@@ -31,8 +31,6 @@ cont_create_args=
 
 [[ "$servers" == "single_server" ]] && pool="one_server"
 [[ "$servers" == "dual_server" ]] && echo "Not implemented" && return 1
-# for DFS_OLD and HDF5
-#[[ "$servers" == "quad_server" ]] && pool="be1a8241-c1d7-44ec-82d8-5b2ea149196d"
 [[ "$servers" == "quad_server" ]] && pool="four_server"
 [[ "$servers" == "hexa_server" ]] && echo "Not implemented" && return 1
 [[ "$servers" == "octa_server" ]] && pool="eight_server"
@@ -99,11 +97,8 @@ else
 
 fi
 
-#rm slurm-${jid}.out nodefile.${jid} prepjob.${jid}.sh prolog_slurmd.${jid}.*
 rm cpool.log
 rm cpool.sh
-
-fi
 
 return $code
 
@@ -171,14 +166,12 @@ else
 
     while squeue | grep -q -e "^ *$jid .* ${USER::8} " ; do sleep 5 && echo "Destroying..."; done
     ls  # used to circumvent cpool.log not found
-    #out=$(cat dpool.log | grep "Successfully destroyed container")
     out=$(cat dpool.log | grep "No containers")
     echo "${out}"
     code=$?
 
 fi
 
-#rm slurm-${jid}.out nodefile.${jid} prepjob.${jid}.sh prolog_slurmd.${jid}.*
 rm dpool.log
 rm dpool.sh
 

@@ -1,36 +1,8 @@
 type: local
 schema: @SCHEMA_PATH@
-#schema: /home/n_manubens_gil_gmail_com/daos-tests/google/fdb_hammer/schema_rados
 engine: rados
 store: rados
 rados:
-  #--- RADOS_BACKENDS_SINGLE_POOL
   pool: @POOL@
-  #pool: testpool
-  #root_namespace:
-  #namespace_prefix:
-  #--- pool per db
-  #namespace: default
-  #root_pool: @POOL@
-  #root_pool: 
-  #pool_prefix: dbpool
-  #pool_prefix:
-  #--- unnecessary, autmatically taken from cluster by default
-  #maxPartSize: 130023424
-  #maxPartSize: 1073741824
   store:
-    #--- single pool, object per store, multipart, persist on write
-    #--- single pool, object per store, multipart, persist on flush
-    #maxPartHandleBuffSize: 1024
-    #maxAioBuffSize: 1024
-    #--- single pool, object per field, single part, persist on write
-    #--- single pool, object per field, single part, persist on flush
     maxHandleBuffSize: 100000
-    #--- pool per db, object per store, multipart, persist on write
-    #--- single pool, object per store, single part, persist on write
-    #--- single pool, object per store, single part, persist on flush
-    #maxAioBuffSize: 20480
-    #---
-    #maxPartHandleBuffSize: 100  # if !OBJ_PER_FIELD && RADOS_STORE_MULTIPART && PERSIST_ON_FLUSH
-    #maxHandleBuffSize:  # if OBJ_PER_FIELD && PERSIST_ON_FLUSH
-    #maxAioBuffSize:  # if !OBJ_PER_FIELD && PERSIST_ON_FLUSH

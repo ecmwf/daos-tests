@@ -47,8 +47,6 @@ with_mpiio=
 dfuse_path=/tmp/daos_store
 api_param="-a $ior_api"
 
-#export I_MPI_OFI_LIBRARY_INTERNAL=0
-#export FI_PROVIDER=tcp
 source /opt/intel/setvars.sh
 
 mount_dir=/newlust
@@ -184,10 +182,6 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 	keep_param=
 	[[ "$keep" == "true" ]] && keep_param="-k"
 
-	# if willing to bind clients to a specific socket, e.g. --bind-to ib0
-	#I_MPI_PIN_DOMAIN=auto I_MPI_PIN_ORDER=scatter I_MPI_PIN_CELL=core \
-	#I_MPI_PIN_DOMAIN=[1,4] \
-	#I_MPI_PIN_DOMAIN=1 I_MPI_PIN_CELL=unit \
 	I_MPI_PIN_DOMAIN=auto I_MPI_PIN_CELL=unit I_MPI_PIN_ORDER=scatter \
 	mpirun -n $(($clients_per_node * $n_nodes)) \
 		-ppn $clients_per_node $mpi_params \
@@ -196,14 +190,6 @@ if [ $SLURM_NODEID -eq 0 ] ; then
 		$api_param $rw_params \
 		$ior_params $unique_param $keep_param -d $sleep \
 		-E -C -e -v -v -v
-		# ior segments:
-		#-t ${osize%MiB*}m -b ${osize%MiB*}m $rep_params \
-		# standard bw:
-		#-t 1m -b 8g \
-		# standard thr:
-		#-t 4k -b 1g \
-		# standard latency:
-		#-t 4k -b 100m -z \
 
 	for node in "${nodelist[@]}" ; do
 		[[ "$node" == "$SLURMD_NODENAME" ]] && continue

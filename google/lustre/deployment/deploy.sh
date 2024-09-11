@@ -287,17 +287,6 @@ while [ 1 ] ; do
   delete
   [ $? -ne 0 ] && continue
 
-  #echo "Waiting for slurm controller to be ready..."
-  #
-  #ready=0
-  #while [ $ready -eq 0 ] ; do
-  #  gcloud compute ssh hpcslurmlu-controller --zone=us-central1-a --project=${PROJECT_ID?} -- \
-  #    'sudo tail -n 1 /slurm/scripts/setup.log' | \
-  #    grep -q "Done setting up controller"
-  #  [ $? -eq 0 ] && ready=1 && continue
-  #  sleep 10
-  #done
-
   echo "Reprovisioning..."
 
   create $nnodes

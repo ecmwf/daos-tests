@@ -1,3 +1,5 @@
+#!/bin/env bash
+
 # Copyright 2022 European Centre for Medium-Range Weather Forecasts (ECMWF)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +17,6 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
-
-#!/bin/env bash
 
 # USAGE: ./fdb_hammer/submitter.sh <N_CLIENT_NODES> <FDB_HAMMER_TEST_SCRIPT_NAME> <SCRIPT_ARGS>
 
@@ -64,32 +64,4 @@ EOF
 
 sbatch_args=( "-N${n_nodes}" "$script_filename" )
 
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "$script_filename" )
-
-# 1
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01" "$script_filename" )
-
-# 2
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02" "$script_filename" )
-
-# 4
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02,nextgenio-cn03,nextgenio-cn04" "$script_filename" )
-
-# 8
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02,nextgenio-cn03,nextgenio-cn04,nextgenio-cn05,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08" "$script_filename" )
-
-# 10
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02,nextgenio-cn03,nextgenio-cn04,nextgenio-cn05,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08,nextgenio-cn09,nextgenio-cn10" "$script_filename" )
-
-# 12
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02,nextgenio-cn03,nextgenio-cn04,nextgenio-cn05,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08,nextgenio-cn09,nextgenio-cn10,nextgenio-cn11,nextgenio-cn12" "$script_filename" )
-
-# 14
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02,nextgenio-cn03,nextgenio-cn04,nextgenio-cn05,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08,nextgenio-cn09,nextgenio-cn10,nextgenio-cn11,nextgenio-cn12,nextgenio-cn13,nextgenio-cn14" "$script_filename" )
-
-# 16
-#sbatch_args=( "-N${n_nodes}" "--reservation=adrianj_68" "--exclude=nextgenio-cn01,nextgenio-cn02,nextgenio-cn03,nextgenio-cn04,nextgenio-cn05,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08,nextgenio-cn09,nextgenio-cn10,nextgenio-cn11,nextgenio-cn12,nextgenio-cn13,nextgenio-cn14,nextgenio-cn15,nextgenio-cn16" "$script_filename" )
-
 sbatch "${sbatch_args[@]}"
-#bsub -P O: -l DAOS=1 -C dnp8480 -t 40 "${sbatch_args[@]}"
-#bsub -P O: -l DAOS=1 -C sprh9480 -t 40 "${sbatch_args[@]}"

@@ -16,14 +16,31 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+# --- PARAMETERS ---
+
+# number of nodes Ceph has been deployed on
+servers="sixteen_server"
+
+# number of client nodes to run the becnhmark on
+C=(32 16 8 1)
+
+# Note: also review values for N below to configure
+# number of processes per clietn node
+
+# number of I/O operations per process
+WR=10000
+
+# size of the fields to be written/read
+osizes=("1MiB")
+
+# test repetitions
+REP=3
+
+# ------------------
+
 ready=0
-#service_ready=
 while [ $ready -eq 0 ] ; do
   echo "Waiting for Ceph to be ready..."
-  #status=$(sudo timeout 3 ceph -s)
-  #echo "${status}" | grep -q -e 'health: HEALTH_OK'
-  #service_ready=$?
-  #[ $service_ready -eq 0 ] && ready=1 && continue
   res=$(sudo timeout 3 ceph -s)
   [ $? -eq 0 ] && ready=1 && continue
   sleep 5
@@ -31,18 +48,9 @@ done
 
 cd $HOME/daos-tests/google/ceph
 test_name=patternA
-servers="sixteen_server"
-osizes=("1MiB")
+ocvecs=( "OC_S1 OC_S1" )
 posix_cont="false"
 dummy_daos="false"
-ocvecs=( "OC_S1 OC_S1" )
-#C=(1 2 4 8 12)
-#C=(1 8 16 32)
-C=(32 16 8 1)
-#C=(48 32 16 8 1)
-#C=(32)
-REP=3
-WR=10000
 sleep=0
 source pool_helpers.sh
 tname=${test_name}
@@ -51,35 +59,10 @@ for ocvec in "${ocvecs[@]}" ; do
 ocname=$(echo ${ocvec} | tr ' ' '_')
 ocvec=($(echo "$ocvec"))
 for c in "${C[@]}" ; do
-#[ $c -eq 1 ] && N=(20)
-#[ $c -eq 1 ] && N=(16)
-#[ $c -eq 1 ] && N=(16 32 48 64)
 [ $c -eq 1 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(1 8 16 32 48)
-[ $c -eq 2 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(32)
-[ $c -eq 4 ] && N=(16 32)
-#[ $c -eq 4 ] && N=(16)
-#[ $c -eq 4 ] && N=(1 8 16 32 48)
-#[ $c -eq 4 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 8 ] && N=(16 32)
-#[ $c -eq 8 ] && N=(1 8 16 32 48)
 [ $c -eq 8 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 10 ] && N=(16 32 48 64)
-#[ $c -eq 12 ] && N=(1 8 16 32 48)
-[ $c -eq 12 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 14 ] && N=(16 32 48 64)
 [ $c -eq 16 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 16 ] && N=(16)
-#[ $c -eq 16 ] && N=(16 32 48 64)
-[ $c -eq 18 ] && N=(16 32 48 64)
-[ $c -eq 20 ] && N=(16 32 48 64)
-[ $c -eq 24 ] && N=(16 32 48 64)
-#[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 32 ] && N=(16)
-[ $c -eq 32 ] && N=(24 16 12 8 4 1)
-#[ $c -eq 48 ] && N=(16 32)
-[ $c -eq 48 ] && N=(16 12 8 4 1)
+[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
 for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
 
@@ -121,7 +104,7 @@ for r in `seq 1 $REP` ; do
     while [ $ready -eq 0 ] ; do
       echo "Waiting for Ceph to be ready..."
       status=$(sudo ceph -s)
-      echo "${status}" | tr '\r\n' '_' | grep -q -e 'health: HEALTH_WARN_ *1 pool(s).*_ *1 pool(s).*_ *_  services:' -e 'health: HEALTH_OK'
+      echo "${status}" | tr '\r\n' '_' | grep -q -e 'health: HEALTH_WARN_ *1 pool(s)' -e 'health: HEALTH_ERR_ *2 pool(s)' -e 'health: HEALTH_OK'
       service_ready=$?
       [ $service_ready -eq 0 ] && ready=1 && continue
       sleep 5
@@ -141,22 +124,11 @@ for r in `seq 1 $REP` ; do
         --ock ${ocvec[0]} --oca ${ocvec[1]} --rados \
         $n 0 $WR -P $pool -C $cont_id \
 	--nsteps 100 --nparams 10)
-#        --nmembers= --ndatabases= --nlevels=
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* ${USER::8} " ; do sleep 5 && echo "Sleeping..."; done
 
     sleep 5
-
-#    out=$(./fdb_hammer/submitter.sh $c test_fdb_hammer -PRV tcp \
-#        --osize ${osize} \
-#        --ock ${ocvec[0]} --oca ${ocvec[1]} --rados \
-#        $n 0 $WR -P $pool -C $cont_id \
-#        --nsteps 100 --nparams 10 -L)
-##        --nmembers= --ndatabases= --nlevels=
-#    echo "$out"
-#    jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
-#    while squeue | grep -q -e "^ *$jid .* ${USER::8} " ; do sleep 5 && echo "Sleeping..."; done
 
     out=$(destroy_pool_cont $dummy_daos $servers fdb_hammer)
     code=$?

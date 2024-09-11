@@ -53,8 +53,6 @@ gcloud filestore instances create slurm-home \
   --file-share=name=home,capacity=1TB --network=name=${NETWORK_NAME} --tier=BASIC_HDD \
   --location us-central1-a --project ${PROJECT_ID?}
 
-#  --file-share=name=home,capacity=1TB,source-backup=daos-slurm-home-backup-2,source-backup-region=us-central1 --network=name=${NETWORK_NAME} --tier=BASIC_HDD \
-
 export NFS_IP=$( \
   gcloud filestore instances describe slurm-home \
   --project=$PROJECT_ID --location us-central1-a \

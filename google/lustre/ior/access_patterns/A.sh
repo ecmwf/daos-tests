@@ -16,24 +16,33 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+# --- PARAMETERS ---
+
+# number of nodes Lustre has been deployed on
+servers="sixteen_server"
+
+# number of client nodes to run the becnhmark on
+C=(32 16 8 1)
+
+# Note: also review values for N below to configure
+# number of processes per clietn node
+
+# number of I/O operations per process
+WR=10000
+
+# size of the write/read operations
+# (all going to a file per process)
+osizes=("1MiB")
+
+# test repetitions
+REP=3
+
+# ------------------
 cd $HOME/daos-tests/google/lustre
 test_name=patternA
-#servers="sixteen_server"
-servers="dual_server"
 rep_modes=( "segment" )
 osizes=("1MiB")
 ocs=("SX")
-#C=(16 12 8 4 2 1)
-#C=(1 2 4 8 12)
-#C=(1 2 4 8)
-#C=(1 8 16 32)
-#C=(48 32 16 8 1)
-#C=(1 8 16 32)
-#C=(32 16 8 1)
-#C=(32)
-C=(4)
-REP=1
-WR=10000
 apis=(POSIX)
 sleep=0
 source pool_helpers.sh
@@ -52,42 +61,10 @@ for oc in "${ocs[@]}" ; do
 ocname=$oc
 [[ "$posix_cont" == "true" ]] || [[ "$api" == "POSIX" ]] && cont_oclass=$ocname
 for c in "${C[@]}" ; do
-#[ $c -eq 1 ] && N=(1 4 12 24 36 48 72 96 144 192)
-#[ $c -eq 1 ] && N=(4 8 16)
-#[ $c -eq 1 ] && N=(4 8 16)
-#[ $c -eq 1 ] && N=(1)
 [ $c -eq 1 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 1 ] && N=(1)
-#[ $c -eq 2 ] && N=(1 4 12 18 24 36 48 72 96 144)
-[ $c -eq 2 ] && N=(16)
-#[ $c -eq 2 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(12 16 24 32)
-#[ $c -eq 4 ] && N=(1 4 6 9 12 18 24 36 48 72)
-#[ $c -eq 4 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 4 ] && N=(1 4 32)
-[ $c -eq 4 ] && N=(32)
-[ $c -eq 6 ] && N=(8 16 32)
-#[ $c -eq 8 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 8 ] && N=(8 16 32)
 [ $c -eq 8 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 8 ] && N=(32)
-#[ $c -eq 10 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 12 ] && N=(1 3 4 6 9 12 18 24 36 48)
-[ $c -eq 12 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 12 ] && N=(32)
-[ $c -eq 14 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 16 ] && N=(1 3 4 6 9 12 18 24 36 48)
 [ $c -eq 16 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 16 ] && N=(16 32)
-#[ $c -eq 16 ] && N=(16)
-[ $c -eq 18 ] && N=(1 3 4 6 9 12 18 24 36 48)
-[ $c -eq 20 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 32 ] && N=(24)
-#[ $c -eq 48 ] && N=(16 32)
-[ $c -eq 48 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 48 ] && N=(4)
-#[ $c -eq 48 ] && N=(12 16)
+[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
 for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
 

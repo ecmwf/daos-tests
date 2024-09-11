@@ -66,17 +66,6 @@ running on (used to generate uuids if --unique is set).\n0 by default\n\n\
 -L|--list\n\nTest fdb-list instead of fdb-read.\n\n\
 -h|--help\n\nshow this menu\
 "
-#
-#nmembers: number of ensemble members to generate and archive data for among all parallel runs (on different nodes) of this script. Each member will be run separately on an equal portion of the available client nodes. The number of levels to generate and archive data for will be split among all parallel processes run for a member (potentially on multiple nodes)(i.e. num_nodes / nmembers * N if nmembers < num_nodes, or N / nmembers if nmembers >= num_nodes). The fdb-hammer processes launched by this script run will be configured to generate and archive data for the corresponding member or members. num_nodes must be divisible by nmembers if nmembers < num_nodes, otherwise nmembers must be a multiple of num_nodes and num_nodes * N must be divisible by nmembers. Takes num_nodes by default (i.e. a member per client node).
-#
-#ndatabases: number of databases (or database keys) a member will generate and archive data for. The total amount of parallel processes (potentially on different nodes) devoted to a member will be split in ndatabases groups, and each group will generate a full member with a different expver (and therefore different dbKey). The larger ndatabases, the less processes will be devoted to a member and the more levels a process will generate and archive data for to fulfil W and/or R I/Os. num_nodes * N / nmembers must be divisible by ndatabases and ndatabases must be <= 10. Takes a value of 1 by default.
-#
-#nsteps: N must be divisible by nsteps, if specified. If unspecified, by default it will take a value equal to nlevels and/or nparams, if these are unspecified too, such that W and/or R I/Os are fulfiled.
-#
-#nlevels: nlevels per process! not per member. Levels per member = nlevels * nprocs per member
-#
-#nparams:
-#
     exit 0
     ;;
     --osize)
@@ -379,7 +368,6 @@ function client {
 	local fdb_hammer=$(which fdb-hammer)
 
 	if [ $W -gt 0 ] ; then
-		#out=$($fdb_hammer \
 		out=$(taskset -c $pin_proc $fdb_hammer \
 			$tmp_dir/sample${osize} \
 			--class=rd \
@@ -392,20 +380,14 @@ function client {
 			--nparams=$nparams \
 			--config=${tmp_dir}/config.yaml
 		)
-#			--node-id=$I \
-#			--proc-id=$i \
-#			$I $i $barrier_ts 2>&1
 
 		[ $? != 0 ] && failed=1 && which_failed="${which_failed}${sep}write" \
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
-		#prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp" -e "fdb-hammer - ") && prof_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out") && prof_sep="\n"
-#		hold=0
 	fi
 
 	if [ $R -gt 0 ] ; then
 	if [ $fdb_list -eq 0 ] ; then
-		#out=$($fdb_hammer \
 		out=$(taskset -c $pin_proc $fdb_hammer \
 			$tmp_dir/sample${osize} \
 			--read \
@@ -419,31 +401,11 @@ function client {
 			--nparams=$nparams \
 			--config=${tmp_dir}/config.yaml
 		)
-#			--node-id=$I \
-#			--proc-id=$i \
-#			$I $i $barrier_ts 2>&1
 
 		[ $? != 0 ] && failed=1 && which_failed="${which_failed}${sep}read" \
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
-		#prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp" -e "fdb-hammer - ") && prof_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out") && prof_sep="\n"
-#		hold=0
 	else
-# TODO: if ndatabases > 1, --expver should receive all expver names used by writer processes
-#		out=$(taskset -c $pin_proc $fdb_hammer \
-#			$tmp_dir/sample${osize} \
-#			--list \
-#			--class=rd \
-#			--expver=$expver \
-#			--nsteps=$nsteps \
-#			--nensembles=1 \
-#			--number=$number \
-#			--nlevels=$nlevels \
-#			--level=$level \
-#			--nparams=$nparams \
-#			--config=${tmp_dir}/config.yaml
-#		)
-		#out=$($fdb_hammer \
 		out=$(taskset -c $pin_proc $fdb_hammer \
 			$tmp_dir/sample${osize} \
 			--list \
@@ -457,15 +419,10 @@ function client {
 			--nparams=$nparams \
 			--config=${tmp_dir}/config.yaml
 		)
-#			--node-id=$I \
-#			--proc-id=$i \
-#			$I $i $barrier_ts 2>&1
 
 		[ $? != 0 ] && failed=1 && which_failed="${which_failed}${sep}list" \
 			&& sep="; " && log="${log}"${log_sep}"log: $out" && log_sep="\n"
-		#prof="${prof}"${prof_sep}$(echo "$out" | grep -e "Profiling" -e "Processor" -e "Timestamp" -e "fdb-hammer - ") && prof_sep="\n"
 		prof="${prof}"${prof_sep}$(echo "$out") && prof_sep="\n"
-#		hold=0
 	fi
 	fi
 

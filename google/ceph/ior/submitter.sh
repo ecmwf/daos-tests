@@ -1,3 +1,5 @@
+#!/bin/env bash
+
 # Copyright 2022 European Centre for Medium-Range Weather Forecasts (ECMWF)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +17,6 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
-
-#!/bin/env bash
 
 # USAGE: ./ior/submitter.sh <N_CLIENT_NODES> <SCRIPT_NAME> <IOR_API> <FABRIC_PROVIDER> <SCRIPT_ARGS>
 
@@ -54,29 +54,4 @@ srun ior/test_wrapper.sh ${forward_args[@]}
 EOF
 
 sbatch_args=( "-N${n_nodes}" "$script_filename" )
-
-# 1
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28" "$script_filename" )
-
-# 2
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29" "$script_filename" )
-
-# 4
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29,nextgenio-cn20,nextgenio-cn21" "$script_filename" )
-
-# 8
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29,nextgenio-cn20,nextgenio-cn21,nextgenio-cn22,nextgenio-cn23,nextgenio-cn24,nextgenio-cn25" "$script_filename" )
-
-# 10
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29,nextgenio-cn20,nextgenio-cn21,nextgenio-cn22,nextgenio-cn23,nextgenio-cn24,nextgenio-cn25,nextgenio-cn26,nextgenio-cn27" "$script_filename" )
-
-# 12
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29,nextgenio-cn20,nextgenio-cn21,nextgenio-cn22,nextgenio-cn23,nextgenio-cn24,nextgenio-cn25,nextgenio-cn26,nextgenio-cn27,nextgenio-cn06,nextgenio-cn07" "$script_filename" )
-
-# 14
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29,nextgenio-cn20,nextgenio-cn21,nextgenio-cn22,nextgenio-cn23,nextgenio-cn24,nextgenio-cn25,nextgenio-cn26,nextgenio-cn27,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08,nextgenio-cn09" "$script_filename" )
-
-# 16
-#sbatch_args=( "-N${n_nodes}" "--partition=daos" "--exclude=nextgenio-cn28,nextgenio-cn29,nextgenio-cn20,nextgenio-cn21,nextgenio-cn22,nextgenio-cn23,nextgenio-cn24,nextgenio-cn25,nextgenio-cn26,nextgenio-cn27,nextgenio-cn06,nextgenio-cn07,nextgenio-cn08,nextgenio-cn09,nextgenio-cn31,nextgenio-cn32" "$script_filename" )
-
 sbatch "${sbatch_args[@]}"

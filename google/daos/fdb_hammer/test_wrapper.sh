@@ -289,13 +289,6 @@ end=`date +%s`
 
 setup_time=$((end-start))
 
-#export D_LOG_MASK=DEBUG
-#export DD_SUBSYST=all
-#export DD_MASK=all
-#export D_LOG_FILE_APPEND_PID=1
-#rm -f /tmp/client.log.*
-#export D_LOG_FILE=/tmp/client.log
-
 start=`date +%s`
 echo "./fdb_hammer/${test_name}.sh ${forward_args[@]}"
 ./fdb_hammer/${test_name}.sh "${forward_args[@]}"

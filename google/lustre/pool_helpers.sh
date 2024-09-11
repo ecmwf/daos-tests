@@ -29,19 +29,14 @@ local code=0
 if [[ "$on_posix" == "true" ]] ; then
 
     local pool_param="--pool newlust."
-    #local pool_param="--ost "
     [[ "$servers" == "single_server" ]] && pool_param+="1nodes"
     [[ "$servers" == "dual_server" ]] && pool_param+="2nodes"
     [[ "$servers" == "quad_server" ]] && pool_param+="4nodes"
     [[ "$servers" == "hexa_server" ]] && echo "Not implemented" && return 1
     [[ "$servers" == "octa_server" ]] && pool_param+="8nodes"
-    #[[ "$servers" == "ten_server" ]] && echo "Not implemented" && return 1
     [[ "$servers" == "ten_server" ]] && pool_param+="10nodes"
-    #[[ "$servers" == "twelve_server" ]] && echo "Not implemented" && return 1
     [[ "$servers" == "twelve_server" ]] && pool_param=
-    #[[ "$servers" == "fourteen_server" ]] && echo "Not implemented" && return 1
     [[ "$servers" == "fourteen_server" ]] && pool_param+="14nodes"
-    #[[ "$servers" == "sixteen_server" ]] && echo "Not implemented" && return 1
     [[ "$servers" == "sixteen_server" ]] && pool_param=
     pool_param=
 

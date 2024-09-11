@@ -16,20 +16,33 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+# --- PARAMETERS ---
+
+# number of nodes Ceph has been deployed on
+servers="sixteen_server"
+
+# number of client nodes to run the becnhmark on
+C=(32 16 8 1)
+
+# Note: also review values for N below to configure
+# number of processes per clietn node
+
+# number of I/O operations per process
+WR=100
+
+# size of the write/read operations
+# (all going to a file per process)
+osizes=("1MiB")
+
+# test repetitions
+REP=3
+
+# ------------------
+
 cd $HOME/daos-tests/google/ceph
 test_name=patternA
-servers="sixteen_server"
 rep_modes=( "segment" )
-osizes=("1MiB")
 ocs=("SX")
-#ocs=("SX" "S1")
-#C=(16 12 8 4 2 1)
-#C=(1 2 4 8 12)
-#C=(32 16 8 1)
-#C=(8 1)
-C=(1)
-REP=1
-WR=100
 apis=(RADOS)
 sleep=0
 source pool_helpers.sh
@@ -46,37 +59,10 @@ for osize in "${osizes[@]}" ; do
 for oc in "${ocs[@]}" ; do
 ocname=$oc
 for c in "${C[@]}" ; do
-#[ $c -eq 1 ] && N=(1 4 12 24 36 48 72 96 144 192)
-#[ $c -eq 1 ] && N=(4 8 16)
-#[ $c -eq 1 ] && N=(4 8 16)
-[ $c -eq 1 ] && N=(1)
-#[ $c -eq 1 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 1 ] && N=(32)
-#[ $c -eq 2 ] && N=(1 4 12 18 24 36 48 72 96 144)
-#[ $c -eq 2 ] && N=(32)
-[ $c -eq 2 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(12 16 24 32)
-#[ $c -eq 4 ] && N=(1 4 6 9 12 18 24 36 48 72)
-#[ $c -eq 4 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 4 ] && N=(1 4 32)
-[ $c -eq 4 ] && N=(16)
-#[ $c -eq 8 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 8 ] && N=(8)
-#[ $c -eq 8 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 8 ] && N=(24 32)
-#[ $c -eq 8 ] && N=(64)
-#[ $c -eq 10 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 12 ] && N=(1 3 4 6 9 12 18 24 36 48)
-[ $c -eq 12 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 12 ] && N=(32)
-[ $c -eq 14 ] && N=(1 3 4 6 9 12 18 24 36 48)
-#[ $c -eq 16 ] && N=(1 3 4 6 9 12 18 24 36 48)
+[ $c -eq 1 ] && N=(1 4 8 12 16 24 32)
+[ $c -eq 8 ] && N=(1 4 8 12 16 24 32)
 [ $c -eq 16 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 16 ] && N=(16)
-#[ $c -eq 16 ] && N=(32)
-[ $c -eq 18 ] && N=(1 3 4 6 9 12 18 24 36 48)
-[ $c -eq 20 ] && N=(1 3 4 6 9 12 18 24 36 48)
-[ $c -eq 32 ] && N=(1 32 24 16 12 8 4)
+[ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
 for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
 

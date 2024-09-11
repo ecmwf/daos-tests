@@ -56,9 +56,6 @@ deployment_groups:
           sed -i -e 's/download_updates = yes/download_updates = no/g' -e 's/apply_updates = yes/apply_updates = no/g' /etc/dnf/automatic.conf
           pkill -9 dnf-automatic
           rm -rf /var/lib/rpm/.dbenv.lock /var/lib/rpm/.rpm.lock
-          #dnf search release-ceph
-          #dnf install --assumeyes centos-release-ceph-reef
-          #dnf install --assumeyes cephadm
 
   - id: builder_sa
     source: community/modules/project/service-account

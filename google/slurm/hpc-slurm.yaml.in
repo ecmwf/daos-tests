@@ -24,7 +24,7 @@ vars:
   deployment_name: hpc-slurm
   region: us-central1
   zone: us-central1-a
-  network_name: parallelstore-network
+  network_name: daos-network
 
 deployment_groups:
 
@@ -36,7 +36,6 @@ deployment_groups:
 
   - id: homefs
     source: modules/file-system/pre-existing-network-storage
-    #use: [network]
     settings:
       server_ip: ${NFS_IP?}
       remote_mount: home
@@ -49,34 +48,24 @@ deployment_groups:
     use:
     - network
     settings:
-      node_count_dynamic_max: 48  # --count ${NUM_CLIENTS}
+      node_count_dynamic_max: 48
       preemptible: true
-      enable_spot_vm: true  # --provisioning-model=SPOT
+      enable_spot_vm: true
       enable_smt: true
       machine_type: n2-highcpu-32
       node_conf:
         SocketsPerBoard: 1
         CoresPerSocket: 16
         ThreadsPerCore: 2
-      #machine_type: n2-standard-4
-      #node_conf:
-      #  SocketsPerBoard: 1
-      #  CoresPerSocket: 2
-      #  ThreadsPerCore: 2
       min_cpu_platform: "Intel Ice Lake"
-      disk_type: pd-balanced  # --create-disk=type=pd-balanced
-      disk_auto_delete: true  # --create-disk=auto-delete=yes
-      disk_size_gb: 100  # --create-disk=size=100
+      disk_type: pd-balanced
+      disk_auto_delete: true
+      disk_size_gb: 100
       instance_image_custom: true
-      instance_image:  #--create-disk=image=...
+      instance_image:
         family: my-slurm-daos-ceph-image
         project: ${PROJECT_ID?}
-#      instance_image:
-#        project: schedmd-slurm-public
-#        family: slurm-gcp-6-4-hpc-rocky-linux-8  #--create-disk=image=...
-      #bandwidth_tier: gvnic_enabled  # --network-interface=nic-type=GVNIC --network-performance-configs=total-egress-bandwidth-tier=DEFAULT
-      bandwidth_tier: tier_1_enabled  # --network-interface=nic-type=GVNIC --network-performance-configs=total-egress-bandwidth-tier=TIER_1
-#      enable_oslogin: false  # --metadata=enable-oslogin=FALSE
+      bandwidth_tier: tier_1_enabled
       enable_public_ips: true
       enable_placement: false  # for compute_partition.settings.partition_conf
 
@@ -97,31 +86,22 @@ deployment_groups:
     - network
     - compute_partition
     - homefs
-    #- slurm_login
     settings:
       machine_type: c2-standard-4
-      #disable_smt: false
       enable_controller_public_ips: true
       preemptible: true
       disk_type: pd-balanced
       disk_auto_delete: true
       disk_size_gb: 100
       instance_image_custom: true
-      instance_image:  #--create-disk=image=...
+      instance_image:
         family: my-slurm-daos-ceph-image
         project: ${PROJECT_ID?}
-#      instance_image:
-#        project: schedmd-slurm-public
-#        family: slurm-gcp-6-4-hpc-rocky-linux-8
-#      enable_oslogin: false
-      #controller_startup_scripts_timeout: 900
-      #compute_startup_scripts_timout: 900
       controller_startup_script: |
         #!/bin/sh
         #
         # --- configure daos user ---
         #
-        #adduser ${DAOS_USER?}
         mkdir -p /home/${DAOS_USER?}/.ssh
         echo -e \
           "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile /dev/null" > \
@@ -133,8 +113,6 @@ deployment_groups:
           chmod 644 /home/${DAOS_USER}/.ssh/id_rsa.pub
         fi
         cat /home/${DAOS_USER}/.ssh/id_rsa.pub > /home/${DAOS_USER}/.ssh/authorized_keys
-        #usermod -u 2000 ${DAOS_USER}
-        #groupmod -g 2000 ${DAOS_USER}
         chown ${DAOS_USER}:${DAOS_USER} /home/${DAOS_USER}
         chown -R ${DAOS_USER}:${DAOS_USER} /home/${DAOS_USER}/.ssh
         #
@@ -173,12 +151,6 @@ deployment_groups:
         echo "$CEPH_SSH_PUB_KEY" > /home/${CEPH_USER}/.ssh/authorized_keys
       compute_startup_script: |
         #!/bin/sh
-        #
-        # --- create daos user ---
-        #
-        #adduser ${DAOS_USER?}
-        #usermod -u 2000 ${DAOS_USER}
-        #groupmod -g 2000 ${DAOS_USER}
         #
         # --- configure daos agent ---
         #

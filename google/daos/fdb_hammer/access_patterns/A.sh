@@ -16,17 +16,37 @@
 # granted to it by virtue of its status as an intergovernmental organisation nor
 # does it submit to any jurisdiction.
 
+# --- PARAMETERS ---
+
+# number of nodes DAOS has been deployed on
+servers="sixteen_server"
+
+# number of client nodes to run the becnhmark on
+C=(32 16 8 1)
+
+# Note: also review values for N below to configure
+# number of processes per clietn node
+
+# number of I/O operations per process
+WR=10000
+
+# size of the fields to be written/read
+osizes=("1MiB")
+
+# object classes to test for the KVs and Arrays
+ocvecs=( "OC_S1 OC_S1" )
+#ocvecs=( "OC_RP_2G1 OC_EC_2P1G1" )
+#ocvecs=( "OC_RP_2G1 OC_RP_2G1" )
+
+# test repetitions
+REP=3
+
+# ------------------
+
 cd $HOME/daos-tests/google/daos
 test_name=patternA
-servers="sixteen_server"
-osizes=("1MiB")
+dummy_daos="false"
 posix_cont="false"
-ocvecs=( "OC_RP_2G1 OC_EC_2P1G1" "OC_RP_2G1 OC_RP_2G1" )
-#C=(1 2 4 8 12)
-#C=(1 8 16 32)
-C=(32 16 8 1)
-REP=3
-WR=10000
 sleep=0
 source pool_helpers.sh
 tname=${test_name}
@@ -35,33 +55,10 @@ for ocvec in "${ocvecs[@]}" ; do
 ocname=$(echo ${ocvec} | tr ' ' '_')
 ocvec=($(echo "$ocvec"))
 for c in "${C[@]}" ; do
-#[ $c -eq 1 ] && N=(1)
-#[ $c -eq 1 ] && N=(16)
-#[ $c -eq 1 ] && N=(16 32 48 64)
 [ $c -eq 1 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(1 8 16 32 48)
-[ $c -eq 2 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 2 ] && N=(32)
-[ $c -eq 4 ] && N=(1)
-#[ $c -eq 4 ] && N=(1 8 16 32 48)
-#[ $c -eq 4 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 8 ] && N=(16 32)
-#[ $c -eq 8 ] && N=(1 8 16 32 48)
 [ $c -eq 8 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 10 ] && N=(16 32 48 64)
-#[ $c -eq 12 ] && N=(1 8 16 32 48)
-[ $c -eq 12 ] && N=(1 4 8 12 16 24 32)
-[ $c -eq 14 ] && N=(16 32 48 64)
 [ $c -eq 16 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 16 ] && N=(16)
-#[ $c -eq 16 ] && N=(16 32 48 64)
-[ $c -eq 18 ] && N=(16 32 48 64)
-[ $c -eq 20 ] && N=(16 32 48 64)
-[ $c -eq 24 ] && N=(16 32 48 64)
 [ $c -eq 32 ] && N=(1 4 8 12 16 24 32)
-#[ $c -eq 32 ] && N=(32)
-#[ $c -eq 48 ] && N=(16 24)
-[ $c -eq 48 ] && N=(24)
 for n in "${N[@]}" ; do
 for r in `seq 1 $REP` ; do
 
@@ -94,16 +91,6 @@ for r in `seq 1 $REP` ; do
     echo "$out"
     jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
     while squeue | grep -q -e "^ *$jid .* ${USER::8} " ; do sleep 5 && echo "Sleeping..."; done
-
-#    out=$(./fdb_hammer/submitter.sh $c test_fdb_hammer -PRV tcp \
-#        --osize ${osize} \
-#        --ock ${ocvec[0]} --oca ${ocvec[1]} --daos \
-#        $n 0 $WR -P $pool -C $cont_id \
-#        --nsteps 100 --nparams 10 -L)
-##        --nmembers= --ndatabases= --nlevels=
-#    echo "$out"
-#    jid=$(echo "$out" | grep -e "Submitted batch job" | awk '{print $4}')
-#    while squeue | grep -q -e "^ *$jid .* ${USER::8} " ; do sleep 5 && echo "Sleeping..."; done
 
     out=$(destroy_pool_cont $dummy_daos $servers fdb_hammer)
     code=$?

@@ -76,10 +76,6 @@ deployment_groups:
           kernel-tools-libs \
           --assumeyes
 
-          #kernel-tools-libs-devel --assumeyes
-          # add powertools in enablerepo above?
-          #sudo dnf install --enablerepo=powertools kernel-tools-libs-devel --assumeyes
-
           sudo dnf install --enablerepo=lustre-server \
           kmod-lustre \
           kmod-lustre-osd-ldiskfs \

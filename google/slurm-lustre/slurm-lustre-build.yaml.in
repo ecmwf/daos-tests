@@ -1,0 +1,106 @@
+blueprint_name: hpc-slurm-lustre-build
+
+vars:
+  project_id: ${PROJECT_ID?}
+  deployment_name: hpc-slurm-lustre-build
+  region: us-central1
+  zone: us-central1-a
+
+deployment_groups:
+
+- group: primary
+  modules:
+
+  - id: build-network
+    source: modules/network/vpc
+
+  - id: slurm_lustre_boot_script
+    source: modules/scripts/startup-script
+    settings:
+      runners:
+      - type: shell
+        destination: setup_slurm_lustre.sh
+        content: |
+          #!/bin/sh
+          rm -rf /etc/yum.repos.d/lustre-client.repo
+          #
+          # --- install lustre ---
+          #
+          sudo tee /etc/yum.repos.d/lustre.repo <<INNEREOF
+          [lustre-server]
+          name=lustre-server
+          baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.15.4/el8.9/server
+          gpgcheck=0
+
+          [lustre-client]
+          name=lustre-client
+          baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.15.4/el8.9/client
+          gpgcheck=0
+
+          [e2fsprogs-wc]
+          name=e2fsprogs-wc
+          baseurl=https://downloads.whamcloud.com/public/e2fsprogs/latest/el8
+          gpgcheck=0
+          INNEREOF
+
+          sudo dnf makecache
+
+          sudo dnf install \
+          kernel \
+          kernel-devel \
+          kernel-headers \
+          kernel-tools \
+          kernel-tools-libs \
+          kernel-abi-whitelists --assumeyes
+
+          sudo dnf --nogpgcheck --enablerepo=lustre-client install \
+          kmod-lustre-client \
+          lustre-client --assumeyes
+
+          sudo grubby --set-default=/boot/vmlinuz-4.18.0-513.9.1.el8_9.cloud.0.1.x86_64
+
+          #
+          # --- other libraries ---
+          #
+          sudo google_install_intelmpi --impi_2021
+          sudo dnf install -y nmap
+          sudo dnf install -y cmake
+          #
+          # --- other setup ---
+          #
+          sed -i -e 's/download_updates = yes/download_updates = no/g' -e 's/apply_updates = yes/apply_updates = no/g' /etc/dnf/automatic.conf
+          pkill -9 dnf-automatic
+          rm -rf /var/lib/rpm/.dbenv.lock /var/lib/rpm/.rpm.lock
+          rm -f /var/log/lastlog
+          adduser ${LUSTRE_USER?}
+          usermod -u 3000 ${LUSTRE_USER}
+          groupmod -g 3000 ${LUSTRE_USER}
+
+  - id: builder_sa
+    source: community/modules/project/service-account
+    settings:
+      name: pkr
+      project_roles:
+      - compute.instanceAdmin.v1
+      - logging.logWriter
+      - monitoring.metricWriter
+      - storage.objectViewer
+      - iam.serviceAccountUser
+
+- group: packer-slurm-lustre
+  modules:
+
+  - id: custom-slurm-lustre
+    source: modules/packer/custom-image
+    kind: packer
+    use:
+    - build-network
+    - slurm_lustre_boot_script
+    - builder_sa
+    settings:
+      source_image_project_id: [schedmd-slurm-public]
+      source_image_family: slurm-gcp-6-4-hpc-rocky-linux-8
+      disk_size: 100
+      image_family: my-slurm-lustre-image
+      state_timeout: 15m
+
