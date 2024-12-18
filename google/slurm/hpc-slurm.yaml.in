@@ -85,12 +85,16 @@ deployment_groups:
     - compute_partition
     - homefs
     settings:
-      machine_type: c2-standard-4
+      #machine_type: e2-standard-16
+      machine_type: n2-standard-16
+      #machine_type: n2-highcpu-64
+      #min_cpu_platform: "Intel Ice Lake"
       enable_controller_public_ips: true
-      preemptible: true
+      #preemptible: true
       disk_type: pd-balanced
       disk_auto_delete: true
-      disk_size_gb: 100
+      #disk_size_gb: 100
+      disk_size_gb: 32
       instance_image_custom: true
       instance_image:
         family: my-slurm-daos-ceph-image
@@ -133,10 +137,40 @@ deployment_groups:
         systemctl enable daos_agent
         systemctl start daos_agent
         #
+        # --- create shared dir for dfuse mounts
+        #
+        mkdir -p /tmp/parallelstore
+        chmod go+w /tmp/parallelstore
+        echo "user_allow_other" >> /etc/fuse.conf
+        #
+        # --- create tutorial users
+        #
+        groupadd tu --gid 3000
+        nusers=100
+        for i in `seq 0 ${nusers%%}` ; do
+          user="tu`printf %03d ${i%%}`"
+          adduser ${user%%} -g tu -u `bc <<< 3000+${i%%}`
+          mkdir -p /home/${user%%}/.ssh
+          echo -e \
+            "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile /dev/null" > \
+            /home/${user%%}/.ssh/config
+          chmod 600 /home/${user%%}/.ssh/config
+          if [ ! -f "/home/${user%%}/.ssh/id_rsa" ] ; then
+            ssh-keygen -t rsa -b 4096 -C "${user%%}" -N '' -f "/home/${user%%}/.ssh/id_rsa"
+            chmod 600 /home/${user%%}/.ssh/id_rsa
+            chmod 644 /home/${user%%}/.ssh/id_rsa.pub
+          fi
+          cat /home/${user%%}/.ssh/id_rsa.pub > /home/${user%%}/.ssh/authorized_keys
+          chown ${user%%}:tu /home/${user%%}
+          chown -R ${user%%}:tu /home/${user%%}/.ssh
+          chown ${user%%}:tu /var/spool/mail/${user%%}
+        done
+        #
         # --- enable umount ---
         #
         chmod u+w /etc/sudoers
-        echo '%daos-user ALL=NOPASSWD: /bin/umount' >> /etc/sudoers
+        echo "%${DAOS_USER} ALL=NOPASSWD: /bin/umount" >> /etc/sudoers
+        echo "%tu ALL=NOPASSWD: /bin/umount /tmp/parallelstore" >> /etc/sudoers
         chmod u-w /etc/sudoers
         #
         # --- install ceph manager ---
@@ -173,15 +207,31 @@ deployment_groups:
         systemctl enable daos_agent
         systemctl start daos_agent
         #
+        # --- create shared dir for dfuse mounts
+        #
+        mkdir -p /tmp/parallelstore
+        chmod go+w /tmp/parallelstore
+        echo "user_allow_other" >> /etc/fuse.conf
+        #
+        # --- create tutorial users
+        #
+        groupadd tu --gid 3000 
+        nusers=100
+        for i in `seq 0 ${nusers%%}` ; do
+          user="tu`printf %03d ${i%%}`"
+          adduser ${user%%} -g tu -u `bc <<< 3000+${i%%}`
+        done
+        #
         # --- enable umount ---
         #
         chmod u+w /etc/sudoers
-        echo '%daos-user ALL=NOPASSWD: /bin/umount' >> /etc/sudoers
+        echo "%${DAOS_USER} ALL=NOPASSWD: /bin/umount" >> /etc/sudoers
+        echo "%tu ALL=NOPASSWD: /bin/umount /tmp/parallelstore" >> /etc/sudoers
         chmod u-w /etc/sudoers
         #
         # --- other setup ---
         #
-        sed -i -e 's/slurm//g' /etc/nsswitch.conf
+        #sed -i -e 's/slurm//g' /etc/nsswitch.conf
         echo -e '\n\naccount optional pam_oslogin_admin.so' >> /etc/pam.d/sshd
         #
         # --- install librados ---

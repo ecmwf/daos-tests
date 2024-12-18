@@ -44,20 +44,28 @@ deployment_groups:
           #
           # --- install daos ---
           #
-          sudo tee /etc/yum.repos.d/daos-v2-4-el8.repo << INNEREOF
-          [daos-packages]
-          name=DAOS v2.4.1 Packages Packages
-          baseurl=https://packages.daos.io/v2.4.1/EL8/packages/x86_64
+          sudo tee /etc/yum.repos.d/parallelstore-v2-6-el8.repo <<INNEREOF
+          [parallelstore-v2-6-el8]
+          name=Parallelstore EL8 v2.6
+          baseurl=https://us-central1-yum.pkg.dev/projects/parallelstore-packages/v2-6-el8
           enabled=1
-          gpgcheck=1
-          protect=1
-          gpgkey=https://packages.daos.io/RPM-GPG-KEY-2023
+          repo_gpgcheck=0
+          gpgcheck=0
           INNEREOF
           sudo dnf makecache
           sudo dnf install -y epel-release # needed for capstone
           sudo dnf install -y daos-client
           sudo dnf upgrade -y libfabric
           sudo dnf install -y iperf
+          sudo tee /etc/yum.repos.d/daos-v2-6-el8.repo << INNEREOF
+          [daos-packages]
+          name=DAOS v2.6.1 Packages Packages
+          baseurl=https://packages.daos.io/v2.6.1/EL8/packages/x86_64
+          enabled=1
+          gpgcheck=1
+          protect=1
+          gpgkey=https://packages.daos.io/RPM-GPG-KEY-2023
+          INNEREOF
           sudo dnf makecache
           sudo dnf install -y daos-devel
           # --- add ceph repo ---
@@ -106,6 +114,7 @@ deployment_groups:
     settings:
       source_image_project_id: [schedmd-slurm-public]
       source_image_family: slurm-gcp-6-4-hpc-rocky-linux-8
-      disk_size: 100
+      #disk_size: 100
+      disk_size: 32
       image_family: my-slurm-daos-ceph-image
       state_timeout: 15m
