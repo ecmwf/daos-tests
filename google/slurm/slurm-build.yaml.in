@@ -19,7 +19,7 @@
 blueprint_name: hpc-slurm-daos-build
 
 vars:
-  project_id: ${PROJECT_ID?}
+  project_id: ${PROJECT_ID}
   deployment_name: hpc-slurm-daos-build
   region: us-central1
   zone: us-central1-a
@@ -62,9 +62,9 @@ deployment_groups:
           sudo dnf install -y daos-devel
           # --- add ceph repo ---
           CEPH_RELEASE=18.2.2
-          curl --silent --remote-name --location https://download.ceph.com/rpm-\${CEPH_RELEASE}/el9/noarch/cephadm
+          curl --silent --remote-name --location https://download.ceph.com/rpm-${CEPH_RELEASE%%}/el9/noarch/cephadm
           chmod +x cephadm
-          ./cephadm add-repo --version \${CEPH_RELEASE}
+          ./cephadm add-repo --version ${CEPH_RELEASE%%}
           #
           # --- other libraries ---
           #
@@ -78,7 +78,7 @@ deployment_groups:
           pkill -9 dnf-automatic
           rm -rf /var/lib/rpm/.dbenv.lock /var/lib/rpm/.rpm.lock
           rm -f /var/log/lastlog
-          adduser ${DAOS_USER?}
+          adduser ${DAOS_USER}
           usermod -u 2000 ${DAOS_USER}
           groupmod -g 2000 ${DAOS_USER}
 

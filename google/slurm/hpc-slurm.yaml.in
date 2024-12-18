@@ -18,11 +18,11 @@
 
 blueprint_name: hpc-slurm
 vars:
-  project_id: ${PROJECT_ID?}
+  project_id: ${PROJECT_ID}
   deployment_name: hpc-slurm
   region: us-central1
   zone: us-central1-a
-  network_name: daos-network
+  network_name: ${NETWORK_NAME}
 
 deployment_groups:
 
@@ -35,7 +35,7 @@ deployment_groups:
   - id: homefs
     source: modules/file-system/pre-existing-network-storage
     settings:
-      server_ip: ${NFS_IP?}
+      server_ip: ${NFS_IP}
       remote_mount: home
       local_mount: /home
       fs_type: nfs
@@ -62,7 +62,7 @@ deployment_groups:
       instance_image_custom: true
       instance_image:
         family: my-slurm-daos-ceph-image
-        project: ${PROJECT_ID?}
+        project: ${PROJECT_ID}
       bandwidth_tier: tier_1_enabled
       enable_public_ips: true
       enable_placement: false  # for compute_partition.settings.partition_conf
@@ -94,13 +94,14 @@ deployment_groups:
       instance_image_custom: true
       instance_image:
         family: my-slurm-daos-ceph-image
-        project: ${PROJECT_ID?}
+        project: ${PROJECT_ID}
+      controller_startup_scripts_timeout: 600
       controller_startup_script: |
         #!/bin/sh
         #
         # --- configure daos user ---
         #
-        mkdir -p /home/${DAOS_USER?}/.ssh
+        mkdir -p /home/${DAOS_USER}/.ssh
         echo -e \
           "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile /dev/null" > \
           /home/${DAOS_USER}/.ssh/config
@@ -119,7 +120,7 @@ deployment_groups:
         systemctl stop daos_agent
         mkdir -p /etc/daos
         cat > /etc/daos/daos_agent.yml <<INNEREOF
-        access_points: ${ACCESS_POINTS?}
+        access_points: ${ACCESS_POINTS}
         transport_config:
           allow_insecure: true
         fabric_ifaces:
@@ -141,12 +142,16 @@ deployment_groups:
         # --- install ceph manager ---
         #
         dnf install --assumeyes cephadm ceph-common
-        adduser ${CEPH_USER?}
+        adduser ${CEPH_USER}
         chmod u+w /etc/sudoers
-        echo 'cephadm-user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+        echo "${CEPH_USER} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
         chmod u-w /etc/sudoers
         mkdir -p /home/${CEPH_USER}/.ssh
         echo "$CEPH_SSH_PUB_KEY" > /home/${CEPH_USER}/.ssh/authorized_keys
+        #
+        # --- install librados ---
+        #
+        dnf install --assumeyes librados2-devel
       compute_startup_script: |
         #!/bin/sh
         #
@@ -155,7 +160,7 @@ deployment_groups:
         systemctl stop daos_agent
         mkdir -p /etc/daos
         cat > /etc/daos/daos_agent.yml <<INNEREOF
-        access_points: ${ACCESS_POINTS?}
+        access_points: ${ACCESS_POINTS}
         transport_config:
           allow_insecure: true
         fabric_ifaces:
